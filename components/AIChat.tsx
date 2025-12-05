@@ -87,7 +87,7 @@ export const AIChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
         <div className="mb-4 w-[90vw] sm:w-[400px] h-[500px] glass-panel rounded-2xl border border-vodoun-gold/30 flex flex-col overflow-hidden shadow-[0_0_30px_rgba(124,58,237,0.2)] animate-float">
@@ -170,7 +170,7 @@ export const AIChat: React.FC = () => {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-16 h-16 rounded-full glass-panel border border-vodoun-gold/50 flex items-center justify-center text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all duration-300 hover:scale-110 group ${isOpen ? 'rotate-90 opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`w-14 h-14 md:w-16 md:h-16 rounded-full glass-panel border border-vodoun-gold/50 flex items-center justify-center text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all duration-300 hover:scale-110 group ${isOpen ? 'rotate-90 opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
         <div className="absolute inset-0 rounded-full bg-vodoun-gold opacity-10 animate-ping"></div>
         <MessageSquare size={28} className="group-hover:text-vodoun-gold transition-colors" />

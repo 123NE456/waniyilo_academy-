@@ -9,7 +9,22 @@ import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessag
 const SUPABASE_URL = 'https://quemcztobbsqdlqftgyw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1ZW1jenRvYmJzcWRscWZ0Z3l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MTI1NjksImV4cCI6MjA4MDM4ODU2OX0.s-Al1jPolCYqfxyYULeTF2AD2B8J8HyrUmVX7a6j43A';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// SINGLETON PATTERN: Assure qu'une seule instance du client est créée
+let supabaseInstance: any = null;
+
+const getSupabase = () => {
+    if (!supabaseInstance) {
+        supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true, // Important pour éviter les conflits de session
+                autoRefreshToken: true,
+            }
+        });
+    }
+    return supabaseInstance;
+};
+
+export const supabase = getSupabase();
 
 // --- DIAGNOSTIC SYSTEME ---
 export const checkSupabaseConnection = async (): Promise<{ ok: boolean; message: string }> => {

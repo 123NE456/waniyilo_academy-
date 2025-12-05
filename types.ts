@@ -138,5 +138,6 @@ export enum Section {
   LAB = 'LAB',
   NEWS = 'NEWS',
   PARTNERS = 'PARTNERS',
-  BLOG = 'BLOG'
+  BLOG = 'BLOG',
+  VODUN_DAYS = 'VODUN_DAYS'
 }

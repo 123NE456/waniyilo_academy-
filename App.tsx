@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './components/Navigation';
 import { Hero } from './components/Hero';
@@ -8,6 +9,7 @@ import { Academy } from './components/Academy';
 import { About } from './components/About';
 import { Lab } from './components/Lab';
 import { PartnersAndNews } from './components/Partners';
+import { VodunDays } from './components/VodunDays';
 import { Section, UserProfile } from './types';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { getProfileByMatricule } from './services/supabase';
@@ -116,6 +118,8 @@ function App() {
              <PartnersAndNews onNavigate={setCurrentSection} />
           </div>
         );
+      case Section.VODUN_DAYS:
+          return <VodunDays />;
       case Section.BLOG:
         return (
             <div className="pt-24 px-4 min-h-screen max-w-7xl mx-auto">

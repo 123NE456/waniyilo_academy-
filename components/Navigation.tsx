@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Menu, X, Cpu, BookOpen, Map, Users, FlaskConical, Newspaper } from 'lucide-react';
+import { Menu, X, Cpu, BookOpen, Map, Users, FlaskConical, Newspaper, Flame } from 'lucide-react';
 import { Section } from '../types';
 
 interface NavigationProps {
@@ -13,6 +13,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentSection, onNaviga
 
   const navItems = [
     { id: Section.HOME, label: 'Accueil', icon: <Cpu size={18} /> },
+    { id: Section.VODUN_DAYS, label: 'VODUN DAYS', icon: <Flame size={18} className="text-vodoun-red animate-pulse" />, special: true },
     { id: Section.ABOUT, label: 'Vision', icon: <Users size={18} /> },
     { id: Section.CULTURE, label: 'Patrimoine', icon: <Map size={18} /> },
     { id: Section.ACADEMY, label: 'Académie', icon: <BookOpen size={18} /> },
@@ -50,7 +51,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentSection, onNaviga
                     currentSection === item.id
                       ? 'bg-vodoun-purple/20 text-vodoun-gold border border-vodoun-gold/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                       : 'text-gray-300 hover:text-white hover:bg-white/5'
-                  }`}
+                  } ${item.special ? 'border border-vodoun-red/50 bg-vodoun-red/10 text-white' : ''}`}
                 >
                   {item.icon}
                   {item.label}
@@ -82,7 +83,7 @@ export const Navigation: React.FC<NavigationProps> = ({ currentSection, onNaviga
                   currentSection === item.id
                     ? 'bg-vodoun-purple/20 text-vodoun-gold'
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
+                } ${item.special ? 'text-vodoun-red bg-vodoun-red/10' : ''}`}
               >
                 {item.icon}
                 {item.label}
