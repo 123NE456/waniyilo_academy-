@@ -11,7 +11,7 @@ export default defineConfig({
     host: true,
   },
   define: {
-    __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV), // si tu as besoin d'une variable d'environnement globale
+    __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV), // variable globale si nécessaire
     'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
     // ajoute ici d'autres variables nécessaires
   },
