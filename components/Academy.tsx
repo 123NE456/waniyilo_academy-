@@ -1,10 +1,11 @@
 
+
 // ... (imports remain the same)
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake, Flame, MapPin, Image } from 'lucide-react';
 import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
 import { Lab } from './Lab';
-import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchAllUsers, fetchPartners, addPartner, deletePartner, fetchVodunLocations, addVodunLocation, deleteVodunLocation, fetchVodunArchives, addVodunArchive, deleteVodunArchive } from '../services/supabase';
+import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchAllUsers, fetchPartners, addPartner, deletePartner, fetchVodunLocations, addVodunLocation, deleteVodunLocation, fetchVodunArchives, addVodunArchive, deleteVodunArchive, saveCourseScore } from '../services/supabase';
 
 // ... (Constants like QUESTIONS, PROVERBS, BADGES_DEFINITIONS, FALLBACK_VOCABULARY, FALLBACK_NEWS, AVATAR_STYLES remain the same)
 
@@ -157,8 +158,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   // GAME STATE
   const [gameIndex, setGameIndex] = useState(0);
-  const [gameScore, setGameScore] = useState(0);
+  const [gameScore, setGameScore] = useState(0); // Count correct answers
   const [gameFinished, setGameFinished] = useState(false);
+  const [finalGrade, setFinalGrade] = useState(0); // Score /20
 
   const dailyProverb = useMemo(() => {
       return PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
@@ -252,6 +254,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleDeleteNexusMessage = async (id: number) => {
       if (window.confirm("Admin: Supprimer ce message ?")) {
+          // Optimistic update
           setNexusMessages(prev => prev.filter(m => m.id !== id));
           const res = await deleteNexusMessage(id);
           if (!res.success) {
@@ -312,17 +315,43 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }
   };
 
+  // CHECK LOCK STATUS
+  const isCourseLocked = (level: number) => {
+      if (level === 1) return false; // Level 1 always open
+      if (!userProfile?.course_progress) return true;
+      
+      // Level 2 requires score >= 15 on Level 1
+      if (level === 2) {
+          const score1 = userProfile.course_progress['c1'] || 0;
+          return score1 < 15;
+      }
+      
+      // Level 3 requires score >= 15 on Level 2
+      if (level === 3) {
+          const score2 = userProfile.course_progress['c2'] || 0;
+          return score2 < 15;
+      }
+      
+      return true;
+  }
+
   const launchCourse = (levelString: string) => {
       // Extract level number from string like "Niveau 2"
       const level = parseInt(levelString.replace(/\D/g, '')) || 1;
+      
+      if (isCourseLocked(level)) {
+          showLockedNotification("Score insuffisant au niveau précédent (15/20 requis).");
+          return;
+      }
+
       setSelectedCourseLevel(level);
       resetGame();
       setCurrentView('LEARNING_LANGUE');
   }
 
-  const showLockedNotification = () => {
+  const showLockedNotification = (msg: string = "🚧 Module en construction.") => {
       const notifId = Date.now();
-      setXpNotifications(prev => [...prev, { id: notifId, amount: 0, reason: " 🚧 Module en construction." }]);
+      setXpNotifications(prev => [...prev, { id: notifId, amount: 0, reason: msg }]);
       setTimeout(() => setXpNotifications(prev => prev.filter(n => n.id !== notifId)), 3000);
   }
 
@@ -371,7 +400,8 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
         level: 1, xp: 50,
         badges: ['badge_initiation'],
         joinedAt: new Date().toISOString(),
-        avatar_style: 'bottts'
+        avatar_style: 'bottts',
+        course_progress: {}
       });
       setStage('REGISTRATION');
     }
@@ -532,31 +562,50 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }
   }
 
-  // GAME
+  // GAME & PROGRESSION
   const handleGameAnswer = (selected: string) => {
       const currentWord = vocabularyList[gameIndex];
       const correct = currentWord.fon === selected;
       if (correct) {
           setGameScore(prev => prev + 1);
-          addXp(2, "Bonne réponse !"); 
           playSound('success');
       } else {
-          addXp(0, "Oups, essaie encore.");
           playSound('error');
       }
       if (gameIndex < vocabularyList.length - 1) {
           setGameIndex(prev => prev + 1);
       } else {
-          setGameFinished(true);
-          addXp(10, "Niveau Terminé !"); 
-          playSound('success');
-          triggerConfetti();
+          endGame();
       }
   };
+
+  const endGame = async () => {
+      if (!userProfile) return;
+      setGameFinished(true);
+      
+      const totalQuestions = vocabularyList.length;
+      // Note sur 20
+      const grade20 = totalQuestions > 0 ? Math.round((gameScore / totalQuestions) * 20) : 0;
+      setFinalGrade(grade20);
+
+      // Save Score
+      await saveCourseScore(userProfile.matricule, `c${selectedCourseLevel}`, grade20);
+      
+      // Update local profile state for immediate UI feedback
+      const updatedProgress = { ...userProfile.course_progress, [`c${selectedCourseLevel}`]: grade20 };
+      setUserProfile({ ...userProfile, course_progress: updatedProgress });
+
+      // XP Bonus
+      if (grade20 >= 10) {
+          addXp(grade20 * 2, `Examen Niv ${selectedCourseLevel} réussi`);
+          if (grade20 >= 15) triggerConfetti();
+      }
+  }
 
   const resetGame = () => {
       setGameIndex(0);
       setGameScore(0);
+      setFinalGrade(0);
       setGameFinished(false);
   };
 
@@ -564,8 +613,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const getAvatarUrl = (seed: string, style: string = 'bottts') => `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
   const getArchetypeLabel = (arch: Archetype) => arch ? arch.replace(/_/g, ' ') : 'INITIÉ';
 
-
-  // ... (Renderers for locked/initiation/login stages remain same, only Dashboard Admin Tab is updated below)
 
   if (stage === 'LOCKED' || stage === 'SCANNING') {
     return (
@@ -776,7 +823,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                      <Trophy size={18} /> Panthéon
                  </button>
                  <button onClick={() => { setCurrentView('NEXUS'); closeSidebarMobile(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'NEXUS' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                     <MessageCircle size={18} /> Messagerie
+                     <MessageCircle size={18} /> Nexus (Chat)
                  </button>
                  
                  {userProfile.archetype === 'ADMIN' && (
@@ -822,7 +869,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               {/* RENDER VIEWS */}
               
               {currentView === 'HOME' && (
-                  // ... (Home View code remains mostly same, skipping for brevity)
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
                       <div className="p-6 rounded-xl bg-gradient-to-r from-vodoun-purple/20 to-transparent border-l-4 border-vodoun-purple relative overflow-hidden">
                           <div className="absolute top-0 right-0 p-4 opacity-10"><Quote size={64} className="text-white" /></div>
@@ -861,36 +907,44 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                     <div key={i} className="glass-panel p-4 rounded-xl border border-white/5 h-24 animate-pulse"></div>
                                 ))
                             ) : (
-                                coursesList.map((course) => (
-                                    <div key={course.id} className="glass-panel p-4 rounded-xl border border-white/5 hover:border-vodoun-gold/30 transition-all group">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex gap-4">
-                                                <div className="w-12 h-12 rounded-lg bg-black/50 flex items-center justify-center border border-white/10 group-hover:border-vodoun-gold/50 transition-colors">
-                                                    {course.icon || getIcon(course.iconName)}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-gray-200 group-hover:text-white">{course.title}</h4>
-                                                    <p className="text-sm text-gray-500 mb-2">{course.desc}</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-gray-400">{course.level}</span>
-                                                        {course.duration === "Module Actif" ? (
-                                                            <span className="text-[10px] px-2 py-0.5 bg-vodoun-green/20 text-vodoun-green rounded animate-pulse">Disponible</span>
-                                                        ) : <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-600 rounded">Bientôt</span>}
+                                coursesList.map((course) => {
+                                    // EXTRACT LEVEL NUMBER FOR LOGIC
+                                    const lvlNum = parseInt(course.level.replace(/\D/g, '')) || 1;
+                                    const locked = isCourseLocked(lvlNum);
+                                    
+                                    // GET SCORE
+                                    const score = userProfile.course_progress && userProfile.course_progress[`c${lvlNum}`];
+
+                                    return (
+                                        <div key={course.id} className={`glass-panel p-4 rounded-xl border border-white/5 hover:border-vodoun-gold/30 transition-all group ${locked ? 'opacity-70' : ''}`}>
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex gap-4">
+                                                    <div className="w-12 h-12 rounded-lg bg-black/50 flex items-center justify-center border border-white/10 group-hover:border-vodoun-gold/50 transition-colors">
+                                                        {course.icon || getIcon(course.iconName)}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-200 group-hover:text-white flex items-center gap-2">
+                                                            {course.title}
+                                                            {score !== undefined && <span className={`text-[10px] px-2 rounded ${score >= 15 ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>{score}/20</span>}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-500 mb-2">{course.desc}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-gray-400">{course.level}</span>
+                                                            {locked ? (
+                                                                <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded flex items-center gap-1"><Lock size={10} /> Verrouillé</span>
+                                                            ) : (
+                                                                <span className="text-[10px] px-2 py-0.5 bg-vodoun-green/20 text-vodoun-green rounded animate-pulse">Disponible</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <button onClick={() => launchCourse(course.level)} className={`p-2 rounded-full transition-colors ${locked ? 'bg-white/5 text-gray-600' : 'bg-vodoun-gold/10 text-vodoun-gold hover:bg-vodoun-gold/20'}`}>
+                                                    {locked ? <Lock size={16} /> : <ChevronRight size={20} />}
+                                                </button>
                                             </div>
-                                            {course.duration === "Module Actif" ? (
-                                                <button onClick={() => launchCourse(course.level)} className="p-2 rounded-full bg-vodoun-gold/10 text-vodoun-gold hover:bg-vodoun-gold/20 transition-colors">
-                                                    <ChevronRight size={20} />
-                                                </button>
-                                            ) : (
-                                                <button onClick={showLockedNotification} className="p-2 rounded-full bg-white/5 text-gray-600 hover:text-gray-400 transition-colors">
-                                                    <Lock size={16} />
-                                                </button>
-                                            )}
                                         </div>
-                                    </div>
-                                ))
+                                    )
+                                })
                             )}
                         </div>
                         <div className="space-y-4">
@@ -913,8 +967,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               )}
 
               {currentView === 'LAB' && <div className="animate-in zoom-in-95 duration-300"><Lab /></div>}
-              
-              {/* ... (NEWS, LEARNING_LANGUE, LEADERBOARD, NEXUS views are same as previous) */}
               
               {currentView === 'NEWS' && (
                    <div className="animate-in slide-in-from-right-4">
@@ -993,14 +1045,23 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                   )}
                                   <div className="mt-8 flex justify-between items-center text-xs text-gray-500 font-mono">
                                       <span>Question {gameIndex + 1} / {vocabularyList.length}</span>
-                                      <span>Score: {gameScore}</span>
+                                      <span>Correctes: {gameScore}</span>
                                   </div>
                               </div>
                           ) : (
                               <div className="text-center py-12 glass-panel border border-vodoun-green/30 rounded-2xl">
-                                  <Award size={64} className="text-vodoun-green mx-auto mb-4 animate-bounce" />
-                                  <h2 className="text-3xl font-display font-bold text-white mb-2">Module Terminé !</h2>
-                                  <button onClick={resetGame} className="px-6 py-3 bg-vodoun-green text-white font-bold rounded hover:bg-vodoun-green/80 transition-colors">Rejouer</button>
+                                  {finalGrade >= 15 ? <Award size={64} className="text-vodoun-green mx-auto mb-4 animate-bounce" /> : <AlertCircle size={64} className="text-orange-500 mx-auto mb-4" />}
+                                  
+                                  <h2 className="text-3xl font-display font-bold text-white mb-2">{finalGrade >= 15 ? "Module Validé !" : "Module Non Validé"}</h2>
+                                  <p className="text-4xl font-black text-vodoun-gold mb-6">{finalGrade} / 20</p>
+                                  
+                                  <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                                      {finalGrade >= 15 
+                                        ? "Félicitations ! Votre score est suffisant pour déverrouiller le niveau suivant." 
+                                        : "Vous devez obtenir au moins 15/20 pour progresser. Révisez et réessayez."}
+                                  </p>
+
+                                  <button onClick={resetGame} className="px-6 py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors">Rejouer</button>
                               </div>
                           )}
                       </div>
@@ -1079,6 +1140,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               
               {currentView === 'ADMIN' && userProfile.archetype === 'ADMIN' && (
                   <div className="animate-in slide-in-from-bottom-4 max-w-4xl mx-auto space-y-8 pb-20">
+                      {/* ... (ADMIN Interface remains the same, assuming user is happy with previous ADMIN implementation) */}
                       <div className="text-center mb-6">
                         <h2 className="text-3xl font-display font-bold text-white text-red-500 flex items-center justify-center gap-2">
                             <Key size={32} /> ADMINISTRATION SUPRÊME
@@ -1248,4 +1310,3 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   return null;
 };
-    

@@ -1,5 +1,7 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Flame, MapPin, History, Handshake, Star, Image, Loader2, Navigation, Hotel, Fuel, ArrowRight, Lock } from 'lucide-react';
+import { Flame, MapPin, History, Handshake, Star, Image, Loader2, Navigation, Hotel, Fuel, ArrowRight, Lock, Info, X } from 'lucide-react';
 import { VodunArchive, VodunLocation, Section, Partner } from '../types';
 import { fetchVodunLocations, fetchVodunArchives, fetchPartners } from '../services/supabase';
 
@@ -20,10 +22,13 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // MODAL STATE
+  const [selectedLoc, setSelectedLoc] = useState<VodunLocation | null>(null);
+
   // MAP STATE
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const [isMapInteractive, setIsMapInteractive] = useState(false); // BLOQUER PAR DÉFAUT
+  const [isMapInteractive, setIsMapInteractive] = useState(false); 
 
   useEffect(() => {
     const targetDate = new Date('2026-01-10T00:00:00').getTime();
@@ -60,10 +65,10 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
           try {
               // Centré sur Ouidah
               const map = window.L.map(mapContainerRef.current, {
-                  scrollWheelZoom: false, // Désactivé par défaut
-                  dragging: false,       // Désactivé par défaut
-                  touchZoom: false,      // Désactivé par défaut
-                  zoomControl: false     // On cache les contrôles tant que pas actif
+                  scrollWheelZoom: false,
+                  dragging: false,
+                  touchZoom: false,
+                  zoomControl: false 
               }).setView([6.366, 2.085], 13);
               
               // Dark Mode Tiles (CartoDB Dark Matter)
@@ -75,13 +80,13 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
 
               mapInstanceRef.current = map;
 
-              // Custom Icons
+              // Custom Icons Logic
               const createIcon = (color: string) => {
                   return window.L.divIcon({
                       className: 'custom-div-icon',
-                      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color};"></div>`,
-                      iconSize: [12, 12],
-                      iconAnchor: [6, 6]
+                      html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 15px ${color};"></div>`,
+                      iconSize: [14, 14],
+                      iconAnchor: [7, 7]
                   });
               };
 
@@ -98,7 +103,7 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                           
                           // Custom Popup
                           const popupContent = `
-                            <div style="font-family: 'Inter', sans-serif; color: #333; text-align: center;">
+                            <div style="font-family: 'Inter', sans-serif; color: #333; text-align: center; min-width: 150px;">
                                 <strong style="font-size: 14px; display: block; margin-bottom: 4px;">${loc.name}</strong>
                                 <span style="font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px;">${loc.type}</span>
                                 <br/>
@@ -116,13 +121,11 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
       }
   }, [loading, locations]);
 
-  // GESTION DE L'ACTIVATION DE LA CARTE
   const enableMapInteraction = () => {
       if (mapInstanceRef.current) {
           mapInstanceRef.current.dragging.enable();
           mapInstanceRef.current.touchZoom.enable();
           mapInstanceRef.current.scrollWheelZoom.enable();
-          // Ajouter le contrôle de zoom si on veut
       }
       setIsMapInteractive(true);
   };
@@ -167,7 +170,7 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* CARTE OPENSTREETMAP INTERACTIVE AVEC OVERLAY */}
+        {/* CARTE OPENSTREETMAP INTERACTIVE */}
         <div className="space-y-4">
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-display font-bold text-white mb-2 flex items-center justify-center gap-3">
@@ -180,7 +183,7 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                 {/* LA CARTE */}
                 <div id="map-container" ref={mapContainerRef} className="w-full h-full bg-gray-900"></div>
                 
-                {/* OVERLAY DE PROTECTION (Si non interactif) */}
+                {/* OVERLAY DE PROTECTION */}
                 {!isMapInteractive && !loading && (
                     <div className="absolute inset-0 z-[500] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center cursor-pointer transition-opacity" onClick={enableMapInteraction}>
                         <button 
@@ -202,9 +205,10 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                 )}
             </div>
             <div className="flex justify-center gap-4 text-xs font-mono text-gray-500 flex-wrap">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-vodoun-gold inline-block"></span> LIEUX VODUN</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> HÔTELS</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> STATIONS</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-vodoun-gold inline-block"></span> LIEUX VODUN</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> HÔTELS</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> STATIONS</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span> NATURE</span>
             </div>
         </div>
 
@@ -230,24 +234,31 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                             </div>
                             <div className="p-6 flex flex-col flex-1">
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-xl font-bold text-white">{loc.name}</h3>
+                                    <h3 className="text-xl font-bold text-white truncate pr-2">{loc.name}</h3>
                                     {loc.type === 'Hôtel' && <Hotel size={16} className="text-blue-400" />}
                                     {loc.type === 'Station' && <Fuel size={16} className="text-red-400" />}
                                 </div>
                                 {loc.description_long && (
-                                    <p className="text-sm text-gray-400 mb-4 line-clamp-4 flex-1">{loc.description_long}</p>
+                                    <p className="text-sm text-gray-400 mb-4 line-clamp-3 flex-1">{loc.description_long}</p>
                                 )}
                                 <div className="flex items-center justify-between mt-auto border-t border-white/5 pt-4">
                                     <span className="text-xs text-gray-500">{loc.reviews} Avis</span>
-                                    <button 
-                                        onClick={() => {
-                                            document.getElementById('map-container')?.scrollIntoView({ behavior: 'smooth' });
-                                            // Optional: Trigger map popup open if logical link existed
-                                        }}
-                                        className="text-xs text-vodoun-green hover:text-white flex items-center gap-1"
-                                    >
-                                        Voir sur carte <ArrowRight size={12}/>
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setSelectedLoc(loc)}
+                                            className="text-xs text-vodoun-gold hover:text-white flex items-center gap-1"
+                                        >
+                                            <Info size={12} /> Détails
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                document.getElementById('map-container')?.scrollIntoView({ behavior: 'smooth' });
+                                            }}
+                                            className="text-xs text-vodoun-green hover:text-white flex items-center gap-1"
+                                        >
+                                            Voir Carte <ArrowRight size={12}/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -273,7 +284,7 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                             {arch.gallery && arch.gallery.length > 0 && (
                                 <div className="mt-4 flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory">
                                     {arch.gallery.map((img, idx) => (
-                                        <img key={idx} src={img} alt="Archive" className="w-24 h-24 object-cover rounded-lg border border-white/10 snap-start" />
+                                        <img key={idx} src={img} alt="Archive" className="w-32 h-24 object-cover rounded-lg border border-white/10 snap-start" />
                                     ))}
                                 </div>
                             )}
@@ -310,6 +321,25 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                 ))}
             </div>
         </div>
+
+        {/* MODAL DETAILS */}
+        {selectedLoc && (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                <div className="w-full max-w-lg bg-cyber-gray border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative animate-in zoom-in-95">
+                    <button onClick={() => setSelectedLoc(null)} className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center"><X size={18}/></button>
+                    <div className="h-48">
+                        <img src={selectedLoc.img_url} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-6 max-h-[50vh] overflow-y-auto">
+                        <h2 className="text-2xl font-display font-bold text-white mb-1">{selectedLoc.name}</h2>
+                        <span className="text-vodoun-gold text-xs font-bold uppercase">{selectedLoc.type}</span>
+                        <div className="mt-4 prose prose-invert text-sm text-gray-300">
+                            {selectedLoc.description_long || "Pas de description détaillée disponible."}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
       </div>
     </div>

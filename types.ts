@@ -73,6 +73,7 @@ export interface UserProfile {
   badges: string[]; // IDs of unlocked badges
   joinedAt: string;
   avatar_style?: string; // 'bottts', 'avataaars', 'shapes', etc.
+  course_progress?: { [key: string]: number }; // Stores scores ex: { "c1": 18, "c2": 12 }
 }
 
 export interface LeaderboardEntry {
@@ -139,7 +140,7 @@ export interface VodunLocation {
     reviews: number;
     img_url: string;
     description_long?: string;
-    map_coords?: string; // "x,y"
+    map_coords?: string; // "x,y" or "lat,lng"
 }
 
 export interface VodunArchive {
