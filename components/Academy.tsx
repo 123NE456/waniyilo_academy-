@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake, Flame, MapPin, Image } from 'lucide-react';
-import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
+import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
 import { Lab } from './Lab';
 import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchAllUsers, fetchPartners, addPartner, deletePartner, fetchVodunLocations, addVodunLocation, deleteVodunLocation, fetchVodunArchives, addVodunArchive, deleteVodunArchive, saveCourseScore } from '../services/supabase';
 
@@ -61,6 +61,8 @@ const BADGES_DEFINITIONS = [
 
 const FALLBACK_VOCABULARY: VocabularyItem[] = [
     { id: 1, level: 1, fr: "Ordinateur", fon: "Wémá mɔ", options: ["Wémá mɔ", "Gbedjé", "Zòkèké"] },
+    { id: 2, level: 1, fr: "Internet", fon: "Kan mɛ", options: ["Agbaza", "Kan mɛ", "Yɛhwe"] },
+    { id: 3, level: 1, fr: "Savoir", fon: "Nunyɔ", options: ["Akkwɛ", "Nunyɔ", "Alɔ"] }
 ];
 
 const FALLBACK_NEWS: NewsItem[] = [
@@ -247,6 +249,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleDeleteNexusMessage = async (id: number) => {
       if (window.confirm("Admin: Supprimer ce message ?")) {
+          // Optimistic update
           setNexusMessages(prev => prev.filter(m => m.id !== id));
           const res = await deleteNexusMessage(id);
           if (!res.success) {
@@ -328,6 +331,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   }
 
   const launchCourse = (levelString: string) => {
+      // Extract level number from string like "Niveau 2"
       const level = parseInt(levelString.replace(/\D/g, '')) || 1;
       
       if (isCourseLocked(level)) {
