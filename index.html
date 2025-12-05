@@ -16,52 +16,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="Plateforme éducative et culturelle innovante dédiée à la valorisation du patrimoine béninois et au développement des compétences numériques via l'IA.">
-
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              display: ['Orbitron', 'sans-serif'],
-              tech: ['Rajdhani', 'sans-serif'],
-            },
-            colors: {
-              'vodoun-red': '#DC2626',
-              'vodoun-gold': '#F59E0B',
-              'vodoun-green': '#059669',
-              'vodoun-purple': '#7C3AED',
-              'vodoun-orange': '#EA580C',
-              'cyber-black': '#050505',
-              'cyber-gray': '#121212',
-            },
-            animation: {
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'float': 'float 6s ease-in-out infinite',
-              'glow': 'glow 2s ease-in-out infinite alternate',
-              'spin-slow': 'spin 12s linear infinite',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-20px)' },
-              },
-              glow: {
-                'from': { boxShadow: '0 0 10px #7C3AED, 0 0 20px #7C3AED' },
-                'to': { boxShadow: '0 0 20px #DC2626, 0 0 30px #DC2626' },
-              }
-            }
-          },
-        },
-      }
-    </script>
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
@@ -75,7 +33,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
