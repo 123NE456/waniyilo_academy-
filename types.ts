@@ -130,6 +130,23 @@ export interface UserSummary {
     avatar_style: string;
 }
 
+export interface VodunLocation {
+    id: number;
+    name: string;
+    type: string;
+    rating: number;
+    reviews: number;
+    img_url: string;
+}
+
+export interface VodunArchive {
+    id: number;
+    year: number;
+    title: string;
+    description: string;
+    gallery: string[]; // List of image URLs
+}
+
 export enum Section {
   HOME = 'HOME',
   ABOUT = 'ABOUT',

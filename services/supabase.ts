@@ -1,7 +1,7 @@
 
 
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary } from '../types';
+import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
 
 // Configuration Supabase
 // SECURITY NOTE: Dans un vrai projet déployé, ces clés doivent être dans un fichier .env
@@ -115,6 +115,52 @@ export const deletePartner = async (id: number) => {
         return { success: !error };
     } catch(e) { return { success: false }; }
 }
+
+// --- VODUN DAYS ---
+export const fetchVodunLocations = async (): Promise<VodunLocation[]> => {
+    try {
+        const { data, error } = await supabase.from('vodun_locations').select('*');
+        if(error || !data) return [];
+        return data as VodunLocation[];
+    } catch(e) { return []; }
+}
+
+export const addVodunLocation = async (name: string, type: string, img_url: string) => {
+    try {
+        const { error } = await supabase.from('vodun_locations').insert({ name, type, img_url });
+        return { success: !error };
+    } catch(e) { return { success: false }; }
+}
+
+export const deleteVodunLocation = async (id: number) => {
+    try {
+        const { error } = await supabase.from('vodun_locations').delete().eq('id', id);
+        return { success: !error };
+    } catch(e) { return { success: false }; }
+}
+
+export const fetchVodunArchives = async (): Promise<VodunArchive[]> => {
+    try {
+        const { data, error } = await supabase.from('vodun_archives').select('*').order('year', { ascending: false });
+        if(error || !data) return [];
+        return data as VodunArchive[];
+    } catch(e) { return []; }
+}
+
+export const addVodunArchive = async (year: number, title: string, description: string, gallery: string[]) => {
+    try {
+        const { error } = await supabase.from('vodun_archives').insert({ year, title, description, gallery });
+        return { success: !error };
+    } catch(e) { return { success: false }; }
+}
+
+export const deleteVodunArchive = async (id: number) => {
+    try {
+        const { error } = await supabase.from('vodun_archives').delete().eq('id', id);
+        return { success: !error };
+    } catch(e) { return { success: false }; }
+}
+
 
 // --- COMMENTAIRES ---
 export const fetchComments = async (newsId: string): Promise<Comment[]> => {

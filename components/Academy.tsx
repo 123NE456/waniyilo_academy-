@@ -1,10 +1,11 @@
 
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake } from 'lucide-react';
-import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary } from '../types';
+import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake, Flame, MapPin, Image } from 'lucide-react';
+import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
 import { Lab } from './Lab';
-import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchPrivateMessages, sendPrivateMessage, subscribeToPrivateMessages, fetchAllUsers, fetchPartners, addPartner, deletePartner } from '../services/supabase';
+import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchPrivateMessages, sendPrivateMessage, subscribeToPrivateMessages, fetchAllUsers, fetchPartners, addPartner, deletePartner, fetchVodunLocations, addVodunLocation, deleteVodunLocation, fetchVodunArchives, addVodunArchive, deleteVodunArchive } from '../services/supabase';
 
 // --- CONFIGURATION ---
 
@@ -130,7 +131,18 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [adminPartners, setAdminPartners] = useState<Partner[]>([]);
   const [adminPartnerName, setAdminPartnerName] = useState('');
   const [adminPartnerType, setAdminPartnerType] = useState('OFFICIAL');
-  const [adminTab, setAdminTab] = useState<'CONTENT' | 'USERS' | 'PARTNERS'>('CONTENT');
+  const [adminTab, setAdminTab] = useState<'CONTENT' | 'USERS' | 'PARTNERS' | 'VODUN'>('CONTENT');
+
+  // VODUN ADMIN
+  const [vodunLocs, setVodunLocs] = useState<VodunLocation[]>([]);
+  const [vodunArchs, setVodunArchs] = useState<VodunArchive[]>([]);
+  const [newLocName, setNewLocName] = useState('');
+  const [newLocType, setNewLocType] = useState('Sacré');
+  const [newLocImg, setNewLocImg] = useState('');
+  const [newArchYear, setNewArchYear] = useState('');
+  const [newArchTitle, setNewArchTitle] = useState('');
+  const [newArchDesc, setNewArchDesc] = useState('');
+  const [newArchGallery, setNewArchGallery] = useState(''); // Comma separated URLs
 
   // NEXUS CHAT STATE
   const [nexusMessages, setNexusMessages] = useState<NexusMessage[]>([]);
@@ -209,6 +221,8 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
         fetchVocabulary(1).then(setVocabularyList);
         fetchAllUsers().then(setAdminUsers);
         fetchPartners().then(setAdminPartners);
+        fetchVodunLocations().then(setVodunLocs);
+        fetchVodunArchives().then(setVodunArchs);
       }
 
       if (currentView === 'NEXUS' && userProfile) {
@@ -500,6 +514,30 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       setAdminPartners(prev => prev.filter(p => p.id !== id));
   }
 
+  const handleAddVodunLoc = async () => {
+      if(!newLocName) return;
+      await addVodunLocation(newLocName, newLocType, newLocImg || "https://images.unsplash.com/photo-1596561214300-4497e556398c");
+      setNewLocName(''); setNewLocImg('');
+      fetchVodunLocations().then(setVodunLocs);
+  }
+  const handleDeleteVodunLoc = async (id: number) => {
+      await deleteVodunLocation(id);
+      setVodunLocs(prev => prev.filter(l => l.id !== id));
+  }
+
+  const handleAddVodunArchive = async () => {
+      if(!newArchTitle) return;
+      // Convert comma separated URLs to array
+      const gallery = newArchGallery.split(',').map(u => u.trim()).filter(u => u);
+      await addVodunArchive(parseInt(newArchYear) || 2026, newArchTitle, newArchDesc, gallery);
+      setNewArchTitle(''); setNewArchDesc(''); setNewArchGallery('');
+      fetchVodunArchives().then(setVodunArchs);
+  }
+  const handleDeleteVodunArchive = async (id: number) => {
+      await deleteVodunArchive(id);
+      setVodunArchs(prev => prev.filter(a => a.id !== id));
+  }
+
   const handleAdminDM = (matricule: string) => {
       setPmRecipient(matricule);
       setCurrentView('NEXUS');
@@ -753,7 +791,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                  </div>
              </div>
 
-             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+             <nav className="flex-1 p-4 space-y-1 overflow-y-auto pb-32">
                  <button onClick={() => { setCurrentView('HOME'); closeSidebarMobile(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'HOME' ? 'bg-vodoun-purple/20 text-vodoun-purple border border-vodoun-purple/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                      <LayoutDashboard size={18} /> Tableau de Bord
                  </button>
@@ -776,9 +814,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                      </button>
                  )}
              </nav>
-             <div className="p-4 border-t border-white/5 mt-auto">
-                 <button onClick={handleLogoutLocal} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg text-sm transition-colors border border-red-900/20">
-                     <LogOut size={18} /> Déconnexion
+             <div className="p-4 border-t border-white/5 mt-auto pb-20 md:pb-4 bg-black/90">
+                 <button onClick={handleLogoutLocal} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-bold rounded-lg text-sm transition-colors border border-red-500/50">
+                     <LogOut size={18} /> DÉCONNEXION
                  </button>
              </div>
           </div>
@@ -1114,10 +1152,11 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                         </h2>
                         {adminStatus && <p className="text-vodoun-gold mt-2">{adminStatus}</p>}
                         
-                        <div className="flex justify-center gap-4 mt-6">
-                            <button onClick={() => setAdminTab('CONTENT')} className={`px-4 py-2 rounded font-bold ${adminTab === 'CONTENT' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>CONTENU</button>
-                            <button onClick={() => setAdminTab('USERS')} className={`px-4 py-2 rounded font-bold ${adminTab === 'USERS' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>UTILISATEURS</button>
-                            <button onClick={() => setAdminTab('PARTNERS')} className={`px-4 py-2 rounded font-bold ${adminTab === 'PARTNERS' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>PARTENAIRES</button>
+                        <div className="flex justify-center gap-2 mt-6 overflow-x-auto pb-2">
+                            <button onClick={() => setAdminTab('CONTENT')} className={`px-4 py-2 rounded font-bold whitespace-nowrap ${adminTab === 'CONTENT' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>CONTENU</button>
+                            <button onClick={() => setAdminTab('USERS')} className={`px-4 py-2 rounded font-bold whitespace-nowrap ${adminTab === 'USERS' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>UTILISATEURS</button>
+                            <button onClick={() => setAdminTab('PARTNERS')} className={`px-4 py-2 rounded font-bold whitespace-nowrap ${adminTab === 'PARTNERS' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>PARTENAIRES</button>
+                            <button onClick={() => setAdminTab('VODUN')} className={`px-4 py-2 rounded font-bold whitespace-nowrap ${adminTab === 'VODUN' ? 'bg-red-600 text-white' : 'bg-white/5 text-gray-400'}`}>VODUN DAYS</button>
                         </div>
                       </div>
 
@@ -1213,6 +1252,54 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               </div>
                           </div>
                       )}
+
+                        {adminTab === 'VODUN' && (
+                            <div className="space-y-8">
+                                <div className="glass-panel p-6 rounded-xl border border-red-500/30">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><MapPin size={18}/> Lieux Vodun</h3>
+                                    <div className="space-y-4 mb-6">
+                                        <input placeholder="Nom du Lieu" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocName} onChange={e => setNewLocName(e.target.value)}/>
+                                        <select className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocType} onChange={e => setNewLocType(e.target.value)}>
+                                            <option value="Sacré">Sacré</option><option value="Mémorial">Mémorial</option><option value="Fête">Fête</option>
+                                        </select>
+                                        <input placeholder="URL Image" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocImg} onChange={e => setNewLocImg(e.target.value)}/>
+                                        <button onClick={handleAddVodunLoc} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER LIEU</button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {vodunLocs.map(l => (
+                                            <div key={l.id} className="flex justify-between items-center bg-white/5 p-3 rounded">
+                                                <span className="text-sm font-bold text-white">{l.name}</span>
+                                                <button onClick={() => handleDeleteVodunLoc(l.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="glass-panel p-6 rounded-xl border border-red-500/30">
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Image size={18}/> Archives & Albums</h3>
+                                    <div className="space-y-4 mb-6">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input placeholder="Année" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newArchYear} onChange={e => setNewArchYear(e.target.value)}/>
+                                            <input placeholder="Titre" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newArchTitle} onChange={e => setNewArchTitle(e.target.value)}/>
+                                        </div>
+                                        <textarea placeholder="Description" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newArchDesc} onChange={e => setNewArchDesc(e.target.value)}/>
+                                        <textarea placeholder="URLs Photos (séparées par virgules)" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newArchGallery} onChange={e => setNewArchGallery(e.target.value)}/>
+                                        <button onClick={handleAddVodunArchive} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER ARCHIVE</button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {vodunArchs.map(a => (
+                                            <div key={a.id} className="flex justify-between items-center bg-white/5 p-3 rounded">
+                                                <div>
+                                                    <span className="text-sm font-bold text-white">{a.year} - {a.title}</span>
+                                                    <span className="text-xs text-gray-500 block">{a.gallery ? a.gallery.length : 0} photos</span>
+                                                </div>
+                                                <button onClick={() => handleDeleteVodunArchive(a.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                   </div>
               )}
 

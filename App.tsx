@@ -119,7 +119,7 @@ function App() {
           </div>
         );
       case Section.VODUN_DAYS:
-          return <VodunDays />;
+          return <VodunDays onNavigate={setCurrentSection} />;
       case Section.BLOG:
         return (
             <div className="pt-24 px-4 min-h-screen max-w-7xl mx-auto">
