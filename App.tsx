@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './components/Navigation';
 import { Hero } from './components/Hero';
@@ -9,7 +10,7 @@ import { Lab } from './components/Lab';
 import { PartnersAndNews } from './components/Partners';
 import { Section, UserProfile } from './types';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { getProfileByPhone } from './services/supabase';
+import { getProfileByMatricule } from './services/supabase';
 
 function App() {
   const [currentSection, setCurrentSection] = useState<Section>(Section.HOME);
@@ -23,10 +24,10 @@ function App() {
       
       const checkSession = async () => {
           try {
-              const storedPhone = localStorage.getItem('waniyilo_user_phone');
-              if (storedPhone) {
-                  // On tente de récupérer le profil, mais on n'attend pas éternellement
-                  const profile = await getProfileByPhone(storedPhone);
+              // CHANGE: Check for matricule instead of phone
+              const storedMatricule = localStorage.getItem('waniyilo_user_matricule');
+              if (storedMatricule) {
+                  const profile = await getProfileByMatricule(storedMatricule);
                   if (profile && isMounted) {
                       setGlobalUserProfile(profile);
                       setIsImmersiveMode(true);
@@ -41,7 +42,6 @@ function App() {
 
       checkSession();
 
-      // Sécurité : Force la fin du chargement après 3 secondes max
       const safetyTimeout = setTimeout(() => {
           if (isMounted && isCheckingSession) {
               setIsCheckingSession(false);
@@ -58,7 +58,6 @@ function App() {
       setIsImmersiveMode(true);
   };
 
-  // --- LOADING SCREEN ---
   if (isCheckingSession) {
       return (
           <div className="fixed inset-0 bg-cyber-black flex items-center justify-center">
@@ -70,19 +69,18 @@ function App() {
                       </div>
                   </div>
                   <p className="text-vodoun-gold font-mono text-sm animate-pulse tracking-widest">INITIALISATION DU SYSTÈME...</p>
-                  <p className="text-xs text-gray-600 font-mono mt-2">v2.0.4 // SECURE_LINK</p>
+                  <p className="text-xs text-gray-600 font-mono mt-2">v2.1.0 // MATRICULE_AUTH_READY</p>
               </div>
           </div>
       );
   }
 
-  // --- IMMERSIVE MODE (USER LOGGED IN) ---
   if (isImmersiveMode) {
       return (
           <div className="fixed inset-0 w-full h-full overflow-hidden bg-cyber-black">
              <Academy 
                 initialProfile={globalUserProfile}
-                onEnterImmersive={() => {}} // Already in
+                onEnterImmersive={() => {}} 
                 onLogout={() => {
                     setIsImmersiveMode(false);
                     setGlobalUserProfile(null);
@@ -92,8 +90,6 @@ function App() {
           </div>
       );
   }
-
-  // --- PUBLIC MODE (LANDING SITE) ---
 
   const renderMainContent = () => {
     switch (currentSection) {
@@ -111,10 +107,7 @@ function App() {
       case Section.ACADEMY:
         return (
           <div className="pt-20">
-            {/* Here Academy acts as the Entry Portal */}
-            <Academy 
-                onEnterImmersive={handleEnterImmersive}
-            />
+            <Academy onEnterImmersive={handleEnterImmersive} />
           </div>
         );
        case Section.NEWS:
@@ -148,23 +141,13 @@ function App() {
             </div>
         );
       default:
-        // HOME Layout
         return (
           <>
             <Hero onNavigate={setCurrentSection} />
-            <div id="vision">
-              <About />
-            </div>
-            <div id="map-preview">
-              <CultureMap />
-            </div>
-            <div id="academy-preview">
-               {/* Preview version in Home */}
-               <Academy onEnterImmersive={handleEnterImmersive} />
-            </div>
-            <div id="partners">
-              <PartnersAndNews onNavigate={setCurrentSection} />
-            </div>
+            <div id="vision"><About /></div>
+            <div id="map-preview"><CultureMap /></div>
+            <div id="academy-preview"><Academy onEnterImmersive={handleEnterImmersive} /></div>
+            <div id="partners"><PartnersAndNews onNavigate={setCurrentSection} /></div>
           </>
         );
     }
@@ -173,13 +156,8 @@ function App() {
   return (
     <div className="bg-cyber-black min-h-screen text-gray-100 font-sans selection:bg-vodoun-purple selection:text-white">
       <Navigation currentSection={currentSection} onNavigate={setCurrentSection} />
-      
-      <main className="transition-opacity duration-500 ease-in-out">
-        {renderMainContent()}
-      </main>
-
+      <main className="transition-opacity duration-500 ease-in-out">{renderMainContent()}</main>
       <AIChat />
-
       <footer className="bg-black border-t border-white/10 py-12 px-4 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-center md:text-left">
@@ -189,7 +167,6 @@ function App() {
           <div className="flex gap-6">
             <a href="#" className="text-gray-400 hover:text-vodoun-gold transition-colors">Instagram</a>
             <a href="#" className="text-gray-400 hover:text-vodoun-gold transition-colors">LinkedIn</a>
-            <a href="#" className="text-gray-400 hover:text-vodoun-gold transition-colors">TikTok</a>
           </div>
         </div>
       </footer>

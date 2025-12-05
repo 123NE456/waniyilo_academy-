@@ -46,16 +46,17 @@ export interface NewsItem {
 export interface Badge {
   id: string;
   name: string;
-  icon: any; // Lucide Icon
+  iconName: string; // Lucide Icon Name
   description: string;
   unlocked: boolean;
 }
 
-export type Archetype = 'ARCHITECTE_NUMERIQUE' | 'GARDIEN_DES_ARCHIVES' | 'GRIOT_CYBERNETIQUE' | null;
+export type Archetype = 'ARCHITECTE_NUMERIQUE' | 'GARDIEN_DES_ARCHIVES' | 'GRIOT_CYBERNETIQUE' | 'ADMIN' | null;
 
 export interface UserProfile {
   name: string;
   phone: string; // Only phone, no email
+  matricule: string; // Unique ID (W26-XXXXXX)
   archetype: Archetype;
   level: number;
   xp: number; // Waniyilo Points (WP)

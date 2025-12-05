@@ -17,9 +17,6 @@ export const checkSupabaseConnection = async (): Promise<{ ok: boolean; message:
             if (error.code === '42P01') {
                 return { ok: false, message: "Table 'profiles' introuvable. Lancez le script SQL." };
             }
-            if (error.code === '42883') {
-                return { ok: false, message: "Erreur RLS (UUID vs BigInt). Supprimez la police 'Users can update own basic info'." };
-            }
             return { ok: false, message: `Erreur API: ${error.message}` };
         }
         return { ok: true, message: "Connexion établie. Table prête." };
@@ -52,6 +49,17 @@ export const fetchNews = async (): Promise<NewsItem[]> => {
     }
 };
 
+export const createNews = async (title: string, category: string, excerpt: string, date: string) => {
+    try {
+        const { error } = await supabase.from('news').insert({
+            title, category, excerpt, date_display: date
+        });
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 export const fetchCourses = async (): Promise<Course[]> => {
     try {
         const { data, error } = await supabase
@@ -68,7 +76,7 @@ export const fetchCourses = async (): Promise<Course[]> => {
             level: item.level,
             duration: item.status === 'AVAILABLE' ? 'Module Actif' : 'À venir',
             modules: [],
-            iconName: item.icon_name // On passera le nom de l'icône au composant
+            iconName: item.icon_name
         }));
     } catch (e) {
         return [];
@@ -96,15 +104,27 @@ export const fetchVocabulary = async (level: number = 1): Promise<VocabularyItem
     }
 }
 
+export const addVocabulary = async (fr: string, fon: string, options: string[]) => {
+    try {
+        const { error } = await supabase.from('vocabulary').insert({
+            level: 1, fr, fon, options
+        });
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 
 // --- GESTION DES PROFILS UTILISATEURS ---
 
-export const getProfileByPhone = async (phone: string): Promise<UserProfile | null> => {
+// MODIFIÉ : Récupération par MATRICULE
+export const getProfileByMatricule = async (matricule: string): Promise<UserProfile | null> => {
     try {
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('phone', phone)
+            .eq('matricule', matricule)
             .single();
 
         if (error) {
@@ -114,6 +134,7 @@ export const getProfileByPhone = async (phone: string): Promise<UserProfile | nu
         return {
             name: data.name,
             phone: data.phone,
+            matricule: data.matricule,
             archetype: data.archetype as Archetype,
             level: data.level,
             xp: data.xp,
@@ -126,9 +147,19 @@ export const getProfileByPhone = async (phone: string): Promise<UserProfile | nu
     }
 };
 
-export const upsertProfile = async (profile: UserProfile): Promise<{ success: boolean; error?: string }> => {
+// MODIFIÉ : Génération Matricule et Auth
+export const upsertProfile = async (profile: UserProfile): Promise<{ success: boolean; error?: string; matricule?: string }> => {
     try {
+        // 1. Générer un matricule aléatoire si c'est une nouvelle inscription
+        let matriculeToUse = profile.matricule;
+        
+        if (!matriculeToUse) {
+             const randomId = Math.floor(100000 + Math.random() * 900000); // 6 chiffres
+             matriculeToUse = `W26-${randomId}`;
+        }
+
         const dbProfile = {
+            matricule: matriculeToUse,
             phone: profile.phone,
             name: profile.name,
             archetype: profile.archetype,
@@ -147,24 +178,24 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
             if (error.code === '42883') return { success: false, error: "Erreur config SQL (UUID/BigInt). Vérifiez les policies." };
             return { success: false, error: error.message };
         }
-        return { success: true };
+        return { success: true, matricule: matriculeToUse };
     } catch (e: any) {
         console.error("Erreur critique Supabase", e);
         return { success: false, error: e.message || "Erreur inconnue" };
     }
 };
 
-export const addXPToRemote = async (phone: string, amount: number) => {
+export const addXPToRemote = async (matricule: string, amount: number) => {
     try {
-        // Tentative d'appel RPC sécurisé
-        const { error } = await supabase.rpc('increment_xp', { user_phone: phone, xp_amount: amount });
+        // Tentative d'appel RPC sécurisé avec MATRICULE
+        const { error } = await supabase.rpc('increment_xp', { user_matricule: matricule, xp_amount: amount });
         
         // Fallback si la fonction RPC n'existe pas encore
         if (error) {
             console.warn("RPC increment_xp échoué, fallback update manuel", error.message);
-            const { data: current } = await supabase.from('profiles').select('xp').eq('phone', phone).single();
+            const { data: current } = await supabase.from('profiles').select('xp').eq('matricule', matricule).single();
             if (current) {
-                await supabase.from('profiles').update({ xp: current.xp + amount }).eq('phone', phone);
+                await supabase.from('profiles').update({ xp: current.xp + amount }).eq('matricule', matricule);
             }
         }
     } catch (e) {

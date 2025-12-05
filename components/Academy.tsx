@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash } from 'lucide-react';
+import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark } from 'lucide-react';
 import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem } from '../types';
 import { Lab } from './Lab';
-import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary } from '../services/supabase';
+import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule } from '../services/supabase';
 
 // --- CONFIGURATION ---
 
@@ -45,32 +45,25 @@ const PROVERBS = [
     "C'est au bout de la vieille corde qu'on tisse la nouvelle."
 ];
 
-// FALLBACK DATA (Au cas où la DB est vide ou inaccessible)
+const BADGES_DEFINITIONS = [
+    { id: 'badge_initiation', name: "Initié", icon: <Fingerprint />, desc: "A terminé le rituel" },
+    { id: 'badge_langue_1', name: "Parleur Fongbé", icon: <Languages />, desc: "Maîtrise le niveau 1 du vocabulaire" },
+    { id: 'badge_nexus_1', name: "Voix du Peuple", icon: <MessageCircle />, desc: "A participé au Nexus" },
+    { id: 'badge_admin', name: "Maître du Système", icon: <Key />, desc: "Droits d'administrateur" }
+];
+
 const FALLBACK_VOCABULARY: VocabularyItem[] = [
     { id: 1, level: 1, fr: "Ordinateur", fon: "Wémá mɔ", options: ["Wémá mɔ", "Gbedjé", "Zòkèké"] },
     { id: 2, level: 1, fr: "Internet", fon: "Kan mɛ", options: ["Agbaza", "Kan mɛ", "Yɛhwe"] },
-    { id: 3, level: 1, fr: "Savoir", fon: "Nunyɔ", options: ["Akkwɛ", "Nunyɔ", "Alɔ"] },
-    { id: 4, level: 1, fr: "Demain", fon: "Sɔ", options: ["Sɔ", "Egbe", "Zan"] }
-];
-
-const FALLBACK_COURSES: Course[] = [
-    {
-      id: 'c0',
-      title: "J'aime Ma Langue",
-      icon: <Languages size={24} className="text-vodoun-gold" />,
-      desc: "Apprentissage interactif Fongbé & Tech.",
-      level: "Niveau 1",
-      duration: "Module Actif", 
-      modules: ["Vocabulaire Tech", "Prononciation", "Grammaire"]
-    }
+    { id: 3, level: 1, fr: "Savoir", fon: "Nunyɔ", options: ["Akkwɛ", "Nunyɔ", "Alɔ"] }
 ];
 
 const FALLBACK_NEWS: NewsItem[] = [
     { id: '1', title: "Connexion aux Archives...", date: "...", category: "Tech", excerpt: "Chargement du flux d'actualités en cours." },
 ];
 
-type Stage = 'LOCKED' | 'SCANNING' | 'INITIATION' | 'REGISTRATION' | 'SYNCING' | 'DASHBOARD';
-type DashboardView = 'HOME' | 'LAB' | 'NEWS' | 'LEARNING_LANGUE' | 'LEADERBOARD' | 'NEXUS';
+type Stage = 'LOCKED' | 'SCANNING' | 'INITIATION' | 'REGISTRATION' | 'MATRICULE_REVEAL' | 'SYNCING' | 'DASHBOARD' | 'LOGIN_WITH_MATRICULE';
+type DashboardView = 'HOME' | 'LAB' | 'NEWS' | 'LEARNING_LANGUE' | 'LEADERBOARD' | 'NEXUS' | 'ADMIN';
 
 interface AcademyProps {
     initialProfile?: UserProfile | null;
@@ -85,15 +78,17 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [userProfile, setUserProfile] = useState<UserProfile | null>(initialProfile || null);
   const [xpNotifications, setXpNotifications] = useState<XPNotification[]>([]);
   
-  // Registration Data (Name + Phone Only)
+  // Registration & Login Data
   const [regData, setRegData] = useState({ name: '', phone: '' }); 
+  const [loginMatricule, setLoginMatricule] = useState('');
+  const [generatedMatricule, setGeneratedMatricule] = useState(''); // Pour l'affichage après inscription
   const [dbError, setDbError] = useState<string | null>(null);
   
   // Network Diagnostic
   const [networkStatus, setNetworkStatus] = useState<{ok: boolean, msg: string} | null>(null);
   
   const [currentView, setCurrentView] = useState<DashboardView>('HOME');
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Closed by default on mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Dynamic Data State
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -103,6 +98,14 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [coursesList, setCoursesList] = useState<Course[]>([]);
   const [vocabularyList, setVocabularyList] = useState<VocabularyItem[]>([]);
   const [isLoadingContent, setIsLoadingContent] = useState(true);
+
+  // ADMIN STATE
+  const [adminNewsTitle, setAdminNewsTitle] = useState('');
+  const [adminNewsCat, setAdminNewsCat] = useState('Tech');
+  const [adminNewsContent, setAdminNewsContent] = useState('');
+  const [adminVocabFr, setAdminVocabFr] = useState('');
+  const [adminVocabFon, setAdminVocabFon] = useState('');
+  const [adminStatus, setAdminStatus] = useState('');
 
   // NEXUS CHAT STATE
   const [nexusMessages, setNexusMessages] = useState<NexusMessage[]>([]);
@@ -114,12 +117,10 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [gameScore, setGameScore] = useState(0);
   const [gameFinished, setGameFinished] = useState(false);
 
-  // Proverb Rotation
   const dailyProverb = useMemo(() => {
       return PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
   }, []);
 
-  // Icon Helper for Dynamic Courses
   const getIcon = (name?: string) => {
       switch(name) {
           case 'Languages': return <Languages size={24} className="text-vodoun-gold" />;
@@ -130,7 +131,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }
   };
 
-  // Sync profile if provided (Prevents double form issue)
   useEffect(() => {
       if (initialProfile) {
           setUserProfile(initialProfile);
@@ -138,28 +138,17 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }
   }, [initialProfile]);
 
-  // Check connection when entering Registration stage
-  useEffect(() => {
-      if (stage === 'REGISTRATION') {
-          checkSupabaseConnection().then(status => {
-              setNetworkStatus({ ok: status.ok, msg: status.message });
-          });
-      }
-  }, [stage]);
-
-  // Load Content (News & Courses) on Mount or Login
   useEffect(() => {
       if (stage === 'DASHBOARD') {
           setIsLoadingContent(true);
           Promise.all([fetchNews(), fetchCourses()]).then(([fetchedNews, fetchedCourses]) => {
               setNewsList(fetchedNews.length > 0 ? fetchedNews : FALLBACK_NEWS);
-              setCoursesList(fetchedCourses.length > 0 ? fetchedCourses : FALLBACK_COURSES);
+              setCoursesList(fetchedCourses); // Don't use fallback for courses to ensure dynamic check works
               setIsLoadingContent(false);
           });
       }
   }, [stage]);
 
-  // Load Specific Content based on View
   useEffect(() => {
       if (currentView === 'LEADERBOARD') {
           setLoadingLeaderboard(true);
@@ -174,28 +163,18 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               setVocabularyList(data.length > 0 ? data : FALLBACK_VOCABULARY);
           });
       }
-  }, [currentView]);
 
-  // NEXUS LOGIC
-  useEffect(() => {
       if (currentView === 'NEXUS') {
-          // 1. Fetch history
           fetchRecentMessages().then(msgs => setNexusMessages(msgs));
-          
-          // 2. Subscribe to realtime
           const subscription = subscribeToNexus((newMsg) => {
               setNexusMessages(prev => [...prev, newMsg]);
-              playSound('success'); // Petit bip à la réception
+              playSound('success');
           });
-
-          return () => {
-              subscription.unsubscribe();
-          };
+          return () => { subscription.unsubscribe(); };
       }
   }, [currentView]);
 
   useEffect(() => {
-      // Scroll to bottom when messages change in Nexus
       if (currentView === 'NEXUS' && messagesEndRef.current) {
           messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
@@ -203,32 +182,22 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleSendMessage = async () => {
       if (!nexusInput.trim() || !userProfile) return;
-      
       const content = nexusInput.trim();
-      setNexusInput(''); // Optimistic clear
-
-      // Sound feedback
+      setNexusInput('');
       playSound('success');
-
-      // Send to backend
       await sendMessageToNexus(userProfile.name, userProfile.phone, userProfile.archetype || '', content);
   };
 
-
-  // --- AUDIO LOGIC ---
   const playSound = (type: 'success' | 'error') => {
     try {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioContext) return;
-        
         const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        
         if (type === 'success') {
-          // Bip futuriste montant
           osc.type = 'sine';
           osc.frequency.setValueAtTime(880, ctx.currentTime);
           osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
@@ -237,7 +206,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           osc.start();
           osc.stop(ctx.currentTime + 0.1);
         } else {
-          // Buzz erreur
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(150, ctx.currentTime);
           gain.gain.setValueAtTime(0.05, ctx.currentTime);
@@ -245,35 +213,34 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           osc.start();
           osc.stop(ctx.currentTime + 0.2);
         }
-    } catch (e) {
-        console.error("Audio not supported");
-    }
+    } catch (e) { console.error("Audio not supported"); }
   };
 
-  // --- LOGIC ---
-
-  const addXp = (amount: number, reason: string) => {
+  const addXp = async (amount: number, reason: string) => {
       if (!userProfile) return;
       
       const newXp = userProfile.xp + amount;
+      const newLevel = Math.floor(newXp / 100) + 1;
       
-      // Update Local
       setUserProfile(prev => {
           if(!prev) return null;
-          return { ...prev, xp: newXp }
+          return { ...prev, xp: newXp, level: newLevel }
       });
 
-      // Update Remote (Supabase)
-      addXPToRemote(userProfile.phone, amount);
+      await addXPToRemote(userProfile.matricule, amount);
 
       const notifId = Date.now();
       setXpNotifications(prev => [...prev, { id: notifId, amount, reason }]);
       setTimeout(() => setXpNotifications(prev => prev.filter(n => n.id !== notifId)), 3000);
+      
+      if (newLevel > userProfile.level) {
+          playSound('success'); // Level up sound
+      }
   };
 
   const showLockedNotification = () => {
       const notifId = Date.now();
-      setXpNotifications(prev => [...prev, { id: notifId, amount: 0, reason: " 🚧 Module en construction. Bientôt disponible." }]);
+      setXpNotifications(prev => [...prev, { id: notifId, amount: 0, reason: " 🚧 Module en construction." }]);
       setTimeout(() => setXpNotifications(prev => prev.filter(n => n.id !== notifId)), 3000);
   }
 
@@ -281,6 +248,29 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
     setStage('SCANNING');
     setTimeout(() => setStage('INITIATION'), 2000);
   };
+
+  const goToLogin = () => {
+      setStage('LOGIN_WITH_MATRICULE');
+  }
+
+  const handleLoginSubmit = async () => {
+      if (!loginMatricule.trim()) return;
+      setDbError(null);
+      setStage('SYNCING');
+      
+      // Admin backdoor check hardcoded or via DB
+      const profile = await getProfileByMatricule(loginMatricule.trim());
+      
+      if (profile) {
+           localStorage.setItem('waniyilo_user_matricule', profile.matricule);
+           setUserProfile(profile);
+           setStage('DASHBOARD');
+           if (onEnterImmersive) onEnterImmersive(profile);
+      } else {
+           setDbError("Matricule inconnu. Avez-vous passé le rituel ?");
+           setStage('LOGIN_WITH_MATRICULE');
+      }
+  }
 
   const handleAnswer = (value: string) => {
     const newAnswers = [...answers, value];
@@ -294,13 +284,10 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }, {});
       const finalArchetype = Object.entries(counts).sort((a: any, b: any) => b[1] - a[1])[0][0] as Archetype;
       
-      // Temporary profile before registration
       setUserProfile({
-        name: '', 
-        phone: '',
+        name: '', phone: '', matricule: '',
         archetype: finalArchetype,
-        level: 1,
-        xp: 100,
+        level: 1, xp: 100,
         badges: ['badge_initiation'],
         joinedAt: new Date().toISOString()
       });
@@ -310,64 +297,74 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const completeRegistration = async () => {
     if (!regData.name.trim() || !regData.phone.trim() || !userProfile) return;
-    
     setStage('SYNCING');
     setDbError(null);
 
-    // Auto-format phone for Benin
     let cleanPhone = regData.phone.replace(/\s/g, '');
     if (!cleanPhone.startsWith('+229')) cleanPhone = '+229' + cleanPhone;
 
     const finalProfile = { ...userProfile, name: regData.name, phone: cleanPhone };
-    
-    // Save to Supabase
     const result = await upsertProfile(finalProfile);
 
-    if (result.success) {
-        // Save local session for auto-login
-        localStorage.setItem('waniyilo_user_phone', cleanPhone);
-
-        setUserProfile(finalProfile);
-        setStage('DASHBOARD');
-        
-        // Pass to App to persist state
-        if (onEnterImmersive) {
-            onEnterImmersive(finalProfile);
-        }
+    if (result.success && result.matricule) {
+        setGeneratedMatricule(result.matricule);
+        const completeProfile = { ...finalProfile, matricule: result.matricule };
+        setUserProfile(completeProfile);
+        setStage('MATRICULE_REVEAL');
     } else {
-        // Affichage de l'erreur
-        setDbError(result.error || "Erreur de connexion aux archives.");
+        setDbError(result.error || "Erreur inscription.");
         setStage('REGISTRATION');
     }
   };
 
+  const enterDashboardAfterReveal = () => {
+      if (!userProfile) return;
+      localStorage.setItem('waniyilo_user_matricule', userProfile.matricule);
+      setStage('DASHBOARD');
+      if (onEnterImmersive) onEnterImmersive(userProfile);
+  }
+
   const handleLogoutLocal = () => {
-      localStorage.removeItem('waniyilo_user_phone');
+      localStorage.removeItem('waniyilo_user_matricule');
       setStage('LOCKED');
       setRegData({ name: '', phone: '' });
+      setLoginMatricule('');
+      setGeneratedMatricule('');
       setCurrentQuestion(0);
       setAnswers([]);
       setSidebarOpen(false);
       if (onLogout) onLogout();
   };
 
-  const getArchetypeLabel = (arch: Archetype) => {
-    switch(arch) {
-        case 'ARCHITECTE_NUMERIQUE': return 'ARCHITECTE NUMÉRIQUE';
-        case 'GARDIEN_DES_ARCHIVES': return 'GARDIEN DES ARCHIVES';
-        case 'GRIOT_CYBERNETIQUE': return 'GRIOT CYBERNÉTIQUE';
-        default: return 'INITIÉ';
-    }
-  };
+  // ADMIN FUNCTIONS
+  const handleCreateNews = async () => {
+      if(!adminNewsTitle) return;
+      const res = await createNews(adminNewsTitle, adminNewsCat, adminNewsContent, "Direct");
+      if(res.success) {
+          setAdminStatus("News publiée !");
+          setAdminNewsTitle('');
+      } else {
+          setAdminStatus("Erreur: " + res.error);
+      }
+  }
 
-  const getAvatarInitials = (name: string) => {
-      return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-  };
+  const handleAddVocab = async () => {
+      if(!adminVocabFr) return;
+      const options = [adminVocabFon, "MauvaiseRep1", "MauvaiseRep2"]; // Simplifié
+      const res = await addVocabulary(adminVocabFr, adminVocabFon, options);
+      if(res.success) {
+          setAdminStatus("Mot ajouté !");
+          setAdminVocabFr('');
+          setAdminVocabFon('');
+      } else {
+          setAdminStatus("Erreur: " + res.error);
+      }
+  }
 
+  // GAME
   const handleGameAnswer = (selected: string) => {
       const currentWord = vocabularyList[gameIndex];
       const correct = currentWord.fon === selected;
-      
       if (correct) {
           setGameScore(prev => prev + 1);
           addXp(10, "Bonne réponse !");
@@ -376,7 +373,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           addXp(0, "Oups, essaie encore.");
           playSound('error');
       }
-
       if (gameIndex < vocabularyList.length - 1) {
           setGameIndex(prev => prev + 1);
       } else {
@@ -393,6 +389,8 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   };
 
   const closeSidebarMobile = () => setSidebarOpen(false);
+  const getAvatarInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const getArchetypeLabel = (arch: Archetype) => arch ? arch.replace(/_/g, ' ') : 'INITIÉ';
 
   // --- RENDERERS ---
 
@@ -411,29 +409,61 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
              </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-display font-black text-white mb-4">ESPACE <span className="text-vodoun-red">INITIÉ</span></h1>
-          <p className="text-gray-400 text-lg mb-8">Passez le rituel pour accéder à votre espace personnel.</p>
+          <p className="text-gray-400 text-lg mb-8">Passez le rituel ou identifiez-vous.</p>
           {stage === 'LOCKED' && (
-            <button onClick={startInitiation} className="px-8 py-3 bg-white/5 border border-vodoun-red hover:bg-vodoun-red/20 text-white font-tech font-bold uppercase rounded transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)]">
-              COMMENCER LE RITUEL
-            </button>
+            <div className="flex flex-col gap-4 max-w-xs mx-auto">
+                <button onClick={startInitiation} className="px-8 py-3 bg-white/5 border border-vodoun-red hover:bg-vodoun-red/20 text-white font-tech font-bold uppercase rounded transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+                NOUVEL INITIÉ (RITUEL)
+                </button>
+                <button onClick={goToLogin} className="px-8 py-3 bg-transparent border border-gray-600 hover:border-white text-gray-400 hover:text-white font-tech font-bold uppercase rounded transition-all">
+                DÉJÀ UN MATRICULE ?
+                </button>
+            </div>
           )}
         </div>
       </div>
     );
   }
 
+  if (stage === 'LOGIN_WITH_MATRICULE') {
+      return (
+        <div className="h-full min-h-[500px] flex items-center justify-center bg-cyber-black py-20 relative">
+            <div className="w-full max-w-md px-4 relative z-10 glass-panel p-8 rounded-2xl border border-white/10">
+                <div className="text-center mb-6">
+                    <Key size={32} className="mx-auto text-vodoun-purple mb-4" />
+                    <h2 className="text-2xl font-display font-bold text-white">IDENTIFICATION</h2>
+                    <p className="text-gray-400 text-sm">Entrez votre matricule Waniyilo.</p>
+                </div>
+                {dbError && (
+                    <div className="p-3 mb-4 bg-red-500/10 border border-red-500/50 rounded text-red-200 text-xs flex items-center gap-2">
+                        <AlertCircle size={14} /> <span>{dbError}</span>
+                    </div>
+                )}
+                <input 
+                    value={loginMatricule} 
+                    onChange={(e) => setLoginMatricule(e.target.value.toUpperCase())}
+                    className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-vodoun-purple focus:outline-none mb-4 text-center font-mono text-lg tracking-widest"
+                    placeholder="W26-XXXXXX"
+                />
+                <button 
+                    onClick={handleLoginSubmit}
+                    className="w-full py-4 bg-vodoun-purple hover:bg-vodoun-purple/80 text-white font-bold font-tech uppercase rounded transition-all"
+                >
+                    ACCÉDER AU SYSTÈME
+                </button>
+                <button onClick={() => setStage('LOCKED')} className="w-full mt-4 text-gray-500 text-xs hover:text-white">Retour</button>
+            </div>
+        </div>
+      );
+  }
+
   if (stage === 'INITIATION') {
     return (
         <div className="h-full min-h-[500px] flex items-center justify-center bg-cyber-black py-20">
         <div className="w-full max-w-2xl px-4">
-           {/* Progress Bar */}
            <div className="w-full h-1 bg-gray-800 rounded-full mb-8 overflow-hidden">
-             <div 
-               className="h-full bg-vodoun-gold transition-all duration-500" 
-               style={{ width: `${((currentQuestion + 1) / QUESTIONS.length) * 100}%` }}
-             ></div>
+             <div className="h-full bg-vodoun-gold transition-all duration-500" style={{ width: `${((currentQuestion + 1) / QUESTIONS.length) * 100}%` }}></div>
            </div>
-           
            <div className="mb-8 text-center animate-in fade-in slide-in-from-bottom-4">
              <span className="text-vodoun-gold font-mono text-xs uppercase tracking-widest">Rituel {currentQuestion + 1} / {QUESTIONS.length}</span>
              <h2 className="text-2xl md:text-3xl font-display text-white mt-4">{QUESTIONS[currentQuestion].text}</h2>
@@ -456,61 +486,30 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   if (stage === 'REGISTRATION' || stage === 'SYNCING') {
       return (
         <div className="h-full min-h-[500px] flex items-center justify-center bg-cyber-black py-20 relative">
-            <div className="absolute inset-0 bg-gradient-to-b from-vodoun-purple/10 to-transparent pointer-events-none"></div>
             <div className="w-full max-w-md px-4 relative z-10">
-                
-                {/* Network Status Badge */}
-                {networkStatus && (
-                    <div className={`absolute -top-16 left-0 right-0 mx-auto w-fit px-3 py-1 rounded-full text-[10px] font-mono border flex items-center gap-2 ${
-                        networkStatus.ok 
-                        ? 'bg-vodoun-green/10 border-vodoun-green text-vodoun-green' 
-                        : 'bg-vodoun-red/10 border-vodoun-red text-vodoun-red'
-                    }`}>
-                        <Wifi size={12} />
-                        {networkStatus.ok ? "SYSTÈME: OPÉRATIONNEL" : "SYSTÈME: HORS LIGNE"}
-                    </div>
-                )}
-
                 <div className="text-center mb-8">
-                    <div className="inline-block p-4 rounded-full bg-vodoun-purple/20 border border-vodoun-purple mb-4">
-                        <User size={32} className="text-vodoun-purple" />
-                    </div>
+                    <User size={32} className="mx-auto text-vodoun-purple mb-4" />
                     <h2 className="text-2xl font-display font-bold text-white">GRAVER VOTRE NOM</h2>
-                    <p className="text-gray-400 text-sm mt-2">Dernière étape avant l'accès au temple numérique.</p>
                 </div>
-
                 <div className="glass-panel p-8 rounded-2xl border border-white/10 space-y-4">
                     {dbError && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-200 text-xs flex items-center gap-2">
-                            <AlertCircle size={14} />
-                            <span>{dbError}</span>
-                        </div>
+                        <div className="p-3 bg-red-500/10 border border-red-500/50 rounded text-red-200 text-xs flex items-center gap-2"><AlertCircle size={14} /><span>{dbError}</span></div>
                     )}
-
-                    <div className="space-y-1">
-                        <label className="text-xs text-gray-500 uppercase font-mono">Nom Complet</label>
-                        <input 
-                            value={regData.name} 
-                            onChange={(e) => setRegData({...regData, name: e.target.value})}
-                            className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-vodoun-purple focus:outline-none transition-colors"
-                            placeholder="Ex: Koffi Mensah"
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-gray-500 uppercase font-mono">Téléphone</label>
-                        <input 
-                            value={regData.phone} 
-                            onChange={(e) => setRegData({...regData, phone: e.target.value})}
-                            className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-vodoun-purple focus:outline-none transition-colors"
-                            placeholder="+229..."
-                        />
-                    </div>
+                    <input 
+                        value={regData.name} onChange={(e) => setRegData({...regData, name: e.target.value})}
+                        className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-vodoun-purple focus:outline-none"
+                        placeholder="Nom Complet"
+                    />
+                    <input 
+                        value={regData.phone} onChange={(e) => setRegData({...regData, phone: e.target.value})}
+                        className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white focus:border-vodoun-purple focus:outline-none"
+                        placeholder="Téléphone (+229...)"
+                    />
                     <button 
-                        onClick={completeRegistration}
-                        disabled={stage === 'SYNCING'}
-                        className="w-full py-4 mt-4 bg-vodoun-purple hover:bg-vodoun-purple/80 text-white font-bold font-tech uppercase rounded transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] disabled:opacity-50 flex items-center justify-center gap-2"
+                        onClick={completeRegistration} disabled={stage === 'SYNCING'}
+                        className="w-full py-4 mt-4 bg-vodoun-purple hover:bg-vodoun-purple/80 text-white font-bold font-tech uppercase rounded transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                        {stage === 'SYNCING' ? <Loader2 className="animate-spin" /> : 'ENTRER DANS LA MATRICE'}
+                        {stage === 'SYNCING' ? <Loader2 className="animate-spin" /> : 'GÉNÉRER MON MATRICULE'}
                     </button>
                 </div>
             </div>
@@ -518,28 +517,44 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       );
   }
 
-  // --- DASHBOARD VIEW ---
+  if (stage === 'MATRICULE_REVEAL') {
+      return (
+          <div className="h-full min-h-[500px] flex items-center justify-center bg-cyber-black py-20">
+              <div className="text-center max-w-md px-4 animate-in zoom-in-95 duration-500">
+                  <div className="mb-6 mx-auto w-24 h-24 rounded-full bg-vodoun-green/20 border-2 border-vodoun-green flex items-center justify-center">
+                      <CheckCircle size={48} className="text-vodoun-green" />
+                  </div>
+                  <h2 className="text-3xl font-display font-bold text-white mb-2">BIENVENUE, INITIÉ</h2>
+                  <p className="text-gray-400 mb-6">Voici votre clé d'accès unique. Conservez-la précieusement.</p>
+                  
+                  <div className="bg-black/80 border-2 border-dashed border-vodoun-gold p-6 rounded-xl mb-8 relative group">
+                      <p className="text-xs text-gray-500 font-mono mb-2">VOTRE MATRICULE</p>
+                      <h3 className="text-4xl font-mono font-bold text-vodoun-gold tracking-widest select-all">{generatedMatricule}</h3>
+                  </div>
 
+                  <button onClick={enterDashboardAfterReveal} className="px-8 py-3 bg-white text-black font-bold rounded hover:bg-gray-200 transition-colors">
+                      ENTRER DANS LE DASHBOARD
+                  </button>
+              </div>
+          </div>
+      )
+  }
+
+  // --- DASHBOARD ---
   if (stage === 'DASHBOARD' && userProfile) {
       return (
         <div className="h-full bg-cyber-black flex overflow-hidden relative pt-16 md:pt-0">
-          
-          {/* XP Notifications (Toast) */}
           <div className="absolute top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
              {xpNotifications.map(notif => (
-                 <div key={notif.id} className="animate-in slide-in-from-right fade-in duration-300 flex items-center gap-3 bg-black/80 backdrop-blur border border-vodoun-gold/50 px-4 py-3 rounded-lg shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                 <div key={notif.id} className="animate-in slide-in-from-right fade-in duration-300 flex items-center gap-3 bg-black/80 backdrop-blur border border-vodoun-gold/50 px-4 py-3 rounded-lg">
                      <span className="text-vodoun-gold font-bold font-display text-xl">+{notif.amount} WP</span>
                      <span className="text-gray-300 text-sm border-l border-gray-700 pl-3">{notif.reason}</span>
                  </div>
              ))}
           </div>
 
-          {/* Mobile Menu Backdrop */}
-          {sidebarOpen && (
-              <div className="fixed inset-0 bg-black/80 z-20 md:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)}></div>
-          )}
+          {sidebarOpen && <div className="fixed inset-0 bg-black/80 z-20 md:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)}></div>}
 
-          {/* Sidebar */}
           <div className={`w-64 bg-black/90 border-r border-white/5 flex flex-col fixed md:relative z-30 h-full transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
              <div className="p-6 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -548,12 +563,10 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                     </div>
                     <div>
                         <h3 className="font-bold text-white text-sm">WANIYILO</h3>
-                        <p className="text-[10px] text-gray-500 font-mono">DASHBOARD v2.1</p>
+                        <p className="text-[10px] text-gray-500 font-mono">MAT: {userProfile.matricule}</p>
                     </div>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400">
-                    <X size={20} />
-                </button>
+                <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400"><X size={20} /></button>
              </div>
 
              <div className="p-6 border-b border-white/5">
@@ -568,7 +581,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                          </div>
                      </div>
                  </div>
-                 <p className="text-[10px] text-gray-500 text-center font-mono">{userProfile.badges.length} Badges Débloqués</p>
              </div>
 
              <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -587,8 +599,13 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                  <button onClick={() => { setCurrentView('NEXUS'); closeSidebarMobile(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'NEXUS' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                      <MessageCircle size={18} /> Nexus
                  </button>
+                 
+                 {userProfile.archetype === 'ADMIN' && (
+                     <button onClick={() => { setCurrentView('ADMIN'); closeSidebarMobile(); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors border border-red-500/30 text-red-400 bg-red-900/10 hover:bg-red-900/20 mt-4`}>
+                        <Key size={18} /> PANEL ADMIN
+                     </button>
+                 )}
              </nav>
-
              <div className="p-4 border-t border-white/5">
                  <button onClick={handleLogoutLocal} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg text-sm transition-colors">
                      <LogOut size={18} /> Déconnexion
@@ -596,63 +613,62 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
              </div>
           </div>
 
-          {/* Main Content */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 relative pt-20 md:pt-8 pb-32 md:pb-8">
-              
-              {/* Top Bar */}
               <div className="flex justify-between items-center mb-8">
                  <div>
                     <h2 className="text-2xl font-display font-bold text-white uppercase">{getArchetypeLabel(userProfile.archetype)}</h2>
-                    <div className="flex items-center gap-3 mt-1">
-                        <p className="text-gray-400 text-sm">Matricule: {userProfile.phone}</p>
-                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-vodoun-green/10 border border-vodoun-green/30 shadow-[0_0_10px_rgba(5,150,105,0.2)]" title="Protection Anti-Triche Active">
-                            <ShieldCheck size={12} className="text-vodoun-green" />
-                            <span className="text-[10px] text-vodoun-green font-mono font-bold tracking-widest">SÉCURISÉ</span>
-                        </div>
-                    </div>
+                    <p className="text-gray-400 text-sm flex items-center gap-2">
+                        <ShieldCheck size={12} className="text-vodoun-green" /> 
+                        Matricule: <span className="font-mono text-white">{userProfile.matricule}</span>
+                    </p>
                  </div>
                  <div className="flex items-center gap-4">
                     <button onClick={() => addXp(5, "Bonus Quotidien")} className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-vodoun-gold hover:bg-white/10 transition-colors">
                         <Gift size={14} /> Bonus
                     </button>
                     <div className="md:hidden">
-                        <button onClick={() => setSidebarOpen(true)}>
-                            <Menu size={24} className="text-vodoun-gold" />
-                        </button>
+                        <button onClick={() => setSidebarOpen(true)}><Menu size={24} className="text-vodoun-gold" /></button>
                     </div>
                  </div>
               </div>
 
-              {/* Views */}
               {currentView === 'HOME' && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-                      
-                      {/* Wisdom Widget */}
                       <div className="p-6 rounded-xl bg-gradient-to-r from-vodoun-purple/20 to-transparent border-l-4 border-vodoun-purple relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-4 opacity-10">
-                              <Quote size={64} className="text-white" />
-                          </div>
+                          <div className="absolute top-0 right-0 p-4 opacity-10"><Quote size={64} className="text-white" /></div>
                           <h3 className="text-xs font-bold text-vodoun-purple uppercase tracking-widest mb-2">Sagesse du Jour</h3>
                           <p className="text-lg md:text-xl text-white font-serif italic">"{dailyProverb}"</p>
                       </div>
 
+                      {/* BADGES SECTION */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                            <Award size={18} className="text-vodoun-gold" /> Mes Trophées
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {BADGES_DEFINITIONS.map(badge => {
+                                const isUnlocked = userProfile.badges.includes(badge.id) || (badge.id === 'badge_admin' && userProfile.archetype === 'ADMIN');
+                                return (
+                                    <div key={badge.id} className={`p-4 rounded-xl border flex flex-col items-center text-center transition-all ${isUnlocked ? 'bg-vodoun-gold/10 border-vodoun-gold/30' : 'bg-white/5 border-white/5 opacity-50 grayscale'}`}>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${isUnlocked ? 'text-vodoun-gold bg-vodoun-gold/20' : 'text-gray-500 bg-gray-800'}`}>
+                                            {badge.icon}
+                                        </div>
+                                        <h4 className="text-xs font-bold text-white">{badge.name}</h4>
+                                        <p className="text-[10px] text-gray-400 mt-1">{badge.desc}</p>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Modules Dynamiques */}
                         <div className="space-y-4">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Construction size={18} className="text-vodoun-gold" /> Modules de Formation
+                                <Construction size={18} className="text-vodoun-gold" /> Modules
                             </h3>
-                            
                             {isLoadingContent ? (
-                                // Loading Skeletons
-                                [1, 2, 3].map(i => (
-                                    <div key={i} className="glass-panel p-4 rounded-xl border border-white/5 h-24 animate-pulse flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white/5 rounded-lg"></div>
-                                        <div className="flex-1 space-y-2">
-                                            <div className="h-4 bg-white/5 rounded w-3/4"></div>
-                                            <div className="h-3 bg-white/5 rounded w-1/2"></div>
-                                        </div>
-                                    </div>
+                                [1, 2].map(i => (
+                                    <div key={i} className="glass-panel p-4 rounded-xl border border-white/5 h-24 animate-pulse"></div>
                                 ))
                             ) : (
                                 coursesList.map((course) => (
@@ -669,24 +685,16 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                                         <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-gray-400">{course.level}</span>
                                                         {course.duration === "Module Actif" ? (
                                                             <span className="text-[10px] px-2 py-0.5 bg-vodoun-green/20 text-vodoun-green rounded animate-pulse">Disponible</span>
-                                                        ) : (
-                                                            <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-600 rounded">Bientôt</span>
-                                                        )}
+                                                        ) : <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-600 rounded">Bientôt</span>}
                                                     </div>
                                                 </div>
                                             </div>
                                             {course.duration === "Module Actif" ? (
-                                                <button 
-                                                    onClick={() => setCurrentView('LEARNING_LANGUE')}
-                                                    className="p-2 rounded-full bg-vodoun-gold/10 text-vodoun-gold hover:bg-vodoun-gold/20 transition-colors"
-                                                >
+                                                <button onClick={() => setCurrentView('LEARNING_LANGUE')} className="p-2 rounded-full bg-vodoun-gold/10 text-vodoun-gold hover:bg-vodoun-gold/20 transition-colors">
                                                     <ChevronRight size={20} />
                                                 </button>
                                             ) : (
-                                                <button 
-                                                    onClick={showLockedNotification}
-                                                    className="p-2 rounded-full bg-white/5 text-gray-600 hover:text-gray-400 transition-colors"
-                                                >
+                                                <button onClick={showLockedNotification} className="p-2 rounded-full bg-white/5 text-gray-600 hover:text-gray-400 transition-colors">
                                                     <Lock size={16} />
                                                 </button>
                                             )}
@@ -695,80 +703,52 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                 ))
                             )}
                         </div>
-
-                        {/* Recent News Widget */}
                         <div className="space-y-4">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Newspaper size={18} className="text-vodoun-orange" /> Flash Info
-                            </h3>
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2"><Newspaper size={18} className="text-vodoun-orange" /> Flash Info</h3>
                             <div className="glass-panel rounded-xl border border-white/5 overflow-hidden">
-                                {isLoadingContent ? (
-                                     <div className="p-6 text-center text-gray-500 flex items-center justify-center gap-2">
-                                         <Loader2 className="animate-spin" size={16}/> Chargement des données...
-                                     </div>
-                                ) : (
-                                    newsList.slice(0, 3).map((news, i) => (
-                                        <div key={i} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-default">
-                                            <div className="flex justify-between mb-1">
-                                                <span className="text-[10px] text-vodoun-orange font-mono">{news.category}</span>
-                                                <span className="text-[10px] text-gray-500">{news.date}</span>
-                                            </div>
-                                            <p className="text-sm text-gray-300 font-medium line-clamp-1">{news.title}</p>
+                                {newsList.slice(0, 3).map((news, i) => (
+                                    <div key={i} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-default">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-[10px] text-vodoun-orange font-mono">{news.category}</span>
+                                            <span className="text-[10px] text-gray-500">{news.date}</span>
                                         </div>
-                                    ))
-                                )}
-                                <button onClick={() => setCurrentView('NEWS')} className="w-full py-3 text-center text-xs text-gray-400 hover:text-white transition-colors bg-white/5">
-                                    Voir tout le flux
-                                </button>
+                                        <p className="text-sm text-gray-300 font-medium line-clamp-1">{news.title}</p>
+                                    </div>
+                                ))}
+                                <button onClick={() => setCurrentView('NEWS')} className="w-full py-3 text-center text-xs text-gray-400 hover:text-white transition-colors bg-white/5">Voir tout</button>
                             </div>
                         </div>
                       </div>
                   </div>
               )}
 
-              {currentView === 'LAB' && (
-                  <div className="animate-in zoom-in-95 duration-300">
-                      <Lab />
-                  </div>
-              )}
-
+              {currentView === 'LAB' && <div className="animate-in zoom-in-95 duration-300"><Lab /></div>}
+              
               {currentView === 'NEWS' && (
                    <div className="animate-in slide-in-from-right-4">
                        <h2 className="text-3xl font-display font-bold text-white mb-6">Flux d'Actualités <span className="text-vodoun-orange">Live</span></h2>
-                       {isLoadingContent ? (
-                            <div className="flex justify-center py-20">
-                                <Loader2 className="animate-spin text-vodoun-orange" size={32} />
-                            </div>
-                       ) : (
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               {newsList.map((news) => (
-                                   <div key={news.id} className="p-6 glass-panel border border-white/10 rounded-xl hover:border-vodoun-orange/30 transition-all">
-                                       <div className="flex justify-between items-start mb-4">
-                                           <span className="px-2 py-1 bg-vodoun-orange/10 text-vodoun-orange text-xs rounded font-bold">{news.category}</span>
-                                           <span className="text-xs text-gray-500">{news.date}</span>
-                                       </div>
-                                       <h3 className="text-xl font-bold text-white mb-2">{news.title}</h3>
-                                       <p className="text-gray-400 text-sm">{news.excerpt}</p>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           {newsList.map((news) => (
+                               <div key={news.id} className="p-6 glass-panel border border-white/10 rounded-xl hover:border-vodoun-orange/30 transition-all">
+                                   <div className="flex justify-between items-start mb-4">
+                                       <span className="px-2 py-1 bg-vodoun-orange/10 text-vodoun-orange text-xs rounded font-bold">{news.category}</span>
+                                       <span className="text-xs text-gray-500">{news.date}</span>
                                    </div>
-                               ))}
-                           </div>
-                       )}
+                                   <h3 className="text-xl font-bold text-white mb-2">{news.title}</h3>
+                                   <p className="text-gray-400 text-sm">{news.excerpt}</p>
+                               </div>
+                           ))}
+                       </div>
                    </div>
               )}
 
               {currentView === 'LEARNING_LANGUE' && (
                   <div className="animate-in slide-in-from-bottom-8">
-                      <button onClick={() => setCurrentView('HOME')} className="mb-6 text-sm text-gray-400 hover:text-white flex items-center gap-2">
-                          <ArrowLeft size={16} /> Retour au QG
-                      </button>
-                      
+                      <button onClick={() => setCurrentView('HOME')} className="mb-6 text-sm text-gray-400 hover:text-white flex items-center gap-2"><ArrowLeft size={16} /> Retour au QG</button>
                       <div className="max-w-3xl mx-auto">
                           {!gameFinished ? (
                               <div className="glass-panel border border-vodoun-gold/30 rounded-2xl p-8 relative overflow-hidden">
-                                  <div className="absolute top-0 right-0 p-4 opacity-10">
-                                      <Languages size={120} className="text-white" />
-                                  </div>
-                                  
+                                  <div className="absolute top-0 right-0 p-4 opacity-10"><Languages size={120} className="text-white" /></div>
                                   <div className="text-center mb-8">
                                       <span className="text-vodoun-gold font-mono text-xs uppercase tracking-widest">Module 1 : Vocabulaire Tech</span>
                                       {vocabularyList.length > 0 && vocabularyList[gameIndex] ? (
@@ -776,25 +756,17 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                             <h2 className="text-4xl font-display font-bold text-white mt-4 mb-2">{vocabularyList[gameIndex].fr}</h2>
                                             <p className="text-gray-400">Comment dit-on cela en Fongbé ?</p>
                                         </>
-                                      ) : (
-                                        <div className="py-10 text-gray-500"><Loader2 className="animate-spin mx-auto"/> Chargement...</div>
-                                      )}
+                                      ) : <div className="py-10 text-gray-500">Chargement...</div>}
                                   </div>
-
                                   {vocabularyList.length > 0 && vocabularyList[gameIndex] && (
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         {vocabularyList[gameIndex].options.map((opt, i) => (
-                                            <button 
-                                                key={i}
-                                                onClick={() => handleGameAnswer(opt)}
-                                                className="py-4 px-6 bg-white/5 border border-white/10 hover:bg-vodoun-gold/10 hover:border-vodoun-gold text-white font-bold rounded-xl transition-all"
-                                            >
+                                            <button key={i} onClick={() => handleGameAnswer(opt)} className="py-4 px-6 bg-white/5 border border-white/10 hover:bg-vodoun-gold/10 hover:border-vodoun-gold text-white font-bold rounded-xl transition-all">
                                                 {opt}
                                             </button>
                                         ))}
                                     </div>
                                   )}
-                                  
                                   <div className="mt-8 flex justify-between items-center text-xs text-gray-500 font-mono">
                                       <span>Question {gameIndex + 1} / {vocabularyList.length}</span>
                                       <span>Score: {gameScore}</span>
@@ -804,10 +776,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               <div className="text-center py-12 glass-panel border border-vodoun-green/30 rounded-2xl">
                                   <Award size={64} className="text-vodoun-green mx-auto mb-4 animate-bounce" />
                                   <h2 className="text-3xl font-display font-bold text-white mb-2">Module Terminé !</h2>
-                                  <p className="text-gray-400 mb-8">Vous avez obtenu {gameScore} / {vocabularyList.length} bonnes réponses.</p>
-                                  <button onClick={resetGame} className="px-6 py-3 bg-vodoun-green text-white font-bold rounded hover:bg-vodoun-green/80 transition-colors">
-                                      Rejouer pour l'honneur
-                                  </button>
+                                  <button onClick={resetGame} className="px-6 py-3 bg-vodoun-green text-white font-bold rounded hover:bg-vodoun-green/80 transition-colors">Rejouer</button>
                               </div>
                           )}
                       </div>
@@ -817,17 +786,10 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               {currentView === 'LEADERBOARD' && (
                   <div className="animate-in slide-in-from-right-4 max-w-4xl mx-auto">
                       <div className="text-center mb-10">
-                          <h2 className="text-4xl font-display font-bold text-white mb-2 flex items-center justify-center gap-3">
-                              <Trophy className="text-vodoun-gold" /> PANTHÉON DES INITIÉS
-                          </h2>
-                          <p className="text-gray-400">Les 10 meilleurs étudiants de l'Académie Waniyilo.</p>
+                          <h2 className="text-4xl font-display font-bold text-white mb-2 flex items-center justify-center gap-3"><Trophy className="text-vodoun-gold" /> PANTHÉON DES INITIÉS</h2>
+                          <p className="text-gray-400">Top 10 Waniyilo.</p>
                       </div>
-
-                      {loadingLeaderboard ? (
-                          <div className="flex justify-center py-20">
-                              <Loader2 className="animate-spin text-vodoun-gold" size={32} />
-                          </div>
-                      ) : (
+                      {loadingLeaderboard ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-vodoun-gold" size={32} /></div> : (
                           <div className="glass-panel border border-white/10 rounded-2xl overflow-hidden">
                               <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 bg-white/5 text-xs font-mono text-gray-500 uppercase">
                                   <div className="col-span-1 text-center">#</div>
@@ -838,28 +800,12 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               <div className="divide-y divide-white/5">
                                   {leaderboard.map((entry, idx) => (
                                       <div key={idx} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
-                                          <div className="col-span-1 text-center font-display font-bold text-lg text-gray-500">
-                                              {idx === 0 ? <span className="text-vodoun-gold">1</span> : 
-                                               idx === 1 ? <span className="text-gray-300">2</span> :
-                                               idx === 2 ? <span className="text-orange-700">3</span> : idx + 1}
-                                          </div>
-                                          <div className="col-span-5 font-bold text-white flex items-center gap-2">
-                                              {entry.name}
-                                              {idx < 3 && <Award size={14} className="text-vodoun-gold" />}
-                                          </div>
-                                          <div className="col-span-4 text-xs text-gray-400 font-mono">
-                                              {entry.archetype ? entry.archetype.replace(/_/g, ' ') : 'INCONNU'}
-                                          </div>
-                                          <div className="col-span-2 text-right font-display font-bold text-vodoun-green">
-                                              {entry.xp}
-                                          </div>
+                                          <div className="col-span-1 text-center font-display font-bold text-lg text-gray-500">{idx+1}</div>
+                                          <div className="col-span-5 font-bold text-white flex items-center gap-2">{entry.name}</div>
+                                          <div className="col-span-4 text-xs text-gray-400 font-mono">{entry.archetype ? entry.archetype.replace(/_/g, ' ') : 'INCONNU'}</div>
+                                          <div className="col-span-2 text-right font-display font-bold text-vodoun-green">{entry.xp}</div>
                                       </div>
                                   ))}
-                                  {leaderboard.length === 0 && (
-                                      <div className="p-8 text-center text-gray-500 italic">
-                                          Les archives sont silencieuses pour le moment.
-                                      </div>
-                                  )}
                               </div>
                           </div>
                       )}
@@ -869,48 +815,19 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               {currentView === 'NEXUS' && (
                   <div className="animate-in slide-in-from-right-4 h-[calc(100vh-140px)] flex flex-col">
                       <div className="mb-6 flex items-center justify-between">
-                          <h2 className="text-2xl font-display font-bold text-white flex items-center gap-3">
-                              <MessageCircle className="text-cyan-400" /> NEXUS COMMUNAUTAIRE
-                          </h2>
-                          <div className="text-xs text-cyan-400/70 font-mono flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                              FLUX TEMPS RÉEL ACTIF
-                          </div>
+                          <h2 className="text-2xl font-display font-bold text-white flex items-center gap-3"><MessageCircle className="text-cyan-400" /> NEXUS</h2>
                       </div>
-
                       <div className="flex-1 glass-panel border border-cyan-500/20 rounded-2xl overflow-hidden flex flex-col relative">
-                          {/* Messages Area */}
                           <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                              {nexusMessages.length === 0 && (
-                                  <div className="text-center py-20 text-gray-500 opacity-50">
-                                      <Hash size={48} className="mx-auto mb-4" />
-                                      <p>Le canal est calme... Soyez le premier à parler.</p>
-                                  </div>
-                              )}
-                              
                               {nexusMessages.map((msg) => {
                                   const isMe = msg.user_phone === userProfile.phone;
-                                  const initials = getAvatarInitials(msg.user_name);
                                   return (
                                       <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
                                           <div className="flex items-end gap-2 max-w-[80%]">
-                                              {!isMe && (
-                                                <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center text-[10px] font-bold text-gray-400">
-                                                    {initials}
-                                                </div>
-                                              )}
-                                              <div className={`rounded-2xl p-3 ${
-                                                  isMe 
-                                                  ? 'bg-cyan-500/20 border border-cyan-500/30 text-white rounded-br-none' 
-                                                  : 'bg-white/5 border border-white/10 text-gray-200 rounded-bl-none'
-                                              }`}>
+                                              {!isMe && <div className="w-8 h-8 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center text-[10px] font-bold text-gray-400">{getAvatarInitials(msg.user_name)}</div>}
+                                              <div className={`rounded-2xl p-3 ${isMe ? 'bg-cyan-500/20 border border-cyan-500/30 text-white rounded-br-none' : 'bg-white/5 border border-white/10 text-gray-200 rounded-bl-none'}`}>
                                                   <div className="flex justify-between items-baseline gap-4 mb-1">
-                                                      <span className={`text-[10px] font-bold ${isMe ? 'text-cyan-400' : 'text-vodoun-gold'}`}>
-                                                          {isMe ? 'MOI' : msg.user_name.toUpperCase()}
-                                                      </span>
-                                                      <span className="text-[9px] text-gray-500 font-mono">
-                                                          {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                      </span>
+                                                      <span className={`text-[10px] font-bold ${isMe ? 'text-cyan-400' : 'text-vodoun-gold'}`}>{isMe ? 'MOI' : msg.user_name.toUpperCase()}</span>
                                                   </div>
                                                   <p className="text-sm">{msg.content}</p>
                                               </div>
@@ -920,25 +837,43 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               })}
                               <div ref={messagesEndRef} />
                           </div>
-
-                          {/* Input Area */}
                           <div className="p-4 bg-black/40 border-t border-white/10">
                               <div className="flex gap-2">
-                                  <input 
-                                      value={nexusInput}
-                                      onChange={(e) => setNexusInput(e.target.value)}
-                                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                      placeholder="Partagez votre savoir avec la communauté..."
-                                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
-                                  />
-                                  <button 
-                                      onClick={handleSendMessage}
-                                      disabled={!nexusInput.trim()}
-                                      className="p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl transition-colors disabled:opacity-50"
-                                  >
-                                      <Send size={18} />
-                                  </button>
+                                  <input value={nexusInput} onChange={(e) => setNexusInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Message..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+                                  <button onClick={handleSendMessage} disabled={!nexusInput.trim()} className="p-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl"><Send size={18} /></button>
                               </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+              
+              {currentView === 'ADMIN' && userProfile.archetype === 'ADMIN' && (
+                  <div className="animate-in slide-in-from-bottom-4 max-w-4xl mx-auto space-y-8">
+                      <div className="text-center mb-6">
+                        <h2 className="text-3xl font-display font-bold text-white text-red-500 flex items-center justify-center gap-2">
+                            <Key size={32} /> ADMINISTRATION
+                        </h2>
+                        {adminStatus && <p className="text-vodoun-gold mt-2">{adminStatus}</p>}
+                      </div>
+
+                      <div className="glass-panel p-6 rounded-xl border border-red-500/30">
+                          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Edit3 size={18}/> Publier une News</h3>
+                          <div className="space-y-4">
+                              <input placeholder="Titre" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminNewsTitle} onChange={e => setAdminNewsTitle(e.target.value)}/>
+                              <select className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminNewsCat} onChange={e => setAdminNewsCat(e.target.value)}>
+                                  <option value="Tech">Tech</option><option value="Culture">Culture</option><option value="Event">Event</option>
+                              </select>
+                              <textarea placeholder="Contenu (extrait)" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminNewsContent} onChange={e => setAdminNewsContent(e.target.value)}/>
+                              <button onClick={handleCreateNews} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">PUBLIER</button>
+                          </div>
+                      </div>
+
+                      <div className="glass-panel p-6 rounded-xl border border-red-500/30">
+                          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><PlusCircle size={18}/> Ajouter Vocabulaire</h3>
+                          <div className="space-y-4">
+                              <input placeholder="Mot Français" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminVocabFr} onChange={e => setAdminVocabFr(e.target.value)}/>
+                              <input placeholder="Mot Fon" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminVocabFon} onChange={e => setAdminVocabFon(e.target.value)}/>
+                              <button onClick={handleAddVocab} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER</button>
                           </div>
                       </div>
                   </div>
