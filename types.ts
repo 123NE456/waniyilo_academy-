@@ -27,7 +27,8 @@ export interface Landmark {
 export interface Course {
   id: string;
   title: string;
-  icon: any; // React Node
+  icon?: any; // React Node (Legacy)
+  iconName?: string; // String for DB mapping
   desc: string;
   level: string;
   modules: string[];
@@ -62,10 +63,34 @@ export interface UserProfile {
   joinedAt: string;
 }
 
+export interface LeaderboardEntry {
+    name: string;
+    archetype: Archetype;
+    xp: number;
+    level: number;
+}
+
+export interface NexusMessage {
+  id: number;
+  user_name: string;
+  user_phone: string; // To identify own messages
+  archetype: string;
+  content: string;
+  created_at: string;
+}
+
 export interface XPNotification {
     id: number;
     amount: number;
     reason: string;
+}
+
+export interface VocabularyItem {
+    id: number;
+    level: number;
+    fr: string;
+    fon: string;
+    options: string[];
 }
 
 export enum Section {

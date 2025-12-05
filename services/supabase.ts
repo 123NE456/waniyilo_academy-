@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, Archetype } from '../types';
+import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem } from '../types';
 
 // Configuration Supabase
 const SUPABASE_URL = 'https://quemcztobbsqdlqftgyw.supabase.co';
@@ -11,12 +11,14 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // --- DIAGNOSTIC SYSTEME ---
 export const checkSupabaseConnection = async (): Promise<{ ok: boolean; message: string }> => {
     try {
-        // On essaie juste de lire la table, peu importe le résultat, tant que ça ne crash pas
         const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
         
         if (error) {
-            if (error.code === '42P01') { // Code PostgreSQL pour "Table undefined"
-                return { ok: false, message: "La table 'profiles' n'existe pas. Lancez le script SQL." };
+            if (error.code === '42P01') {
+                return { ok: false, message: "Table 'profiles' introuvable. Lancez le script SQL." };
+            }
+            if (error.code === '42883') {
+                return { ok: false, message: "Erreur RLS (UUID vs BigInt). Supprimez la police 'Users can update own basic info'." };
             }
             return { ok: false, message: `Erreur API: ${error.message}` };
         }
@@ -26,9 +28,77 @@ export const checkSupabaseConnection = async (): Promise<{ ok: boolean; message:
     }
 };
 
+// --- GESTION CONTENU DYNAMIQUE (BACKEND) ---
+
+export const fetchNews = async (): Promise<NewsItem[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('news')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(10);
+            
+        if (error || !data) return [];
+        
+        return data.map((item: any) => ({
+            id: item.id.toString(),
+            title: item.title,
+            category: item.category,
+            excerpt: item.excerpt,
+            date: item.date_display
+        }));
+    } catch (e) {
+        return [];
+    }
+};
+
+export const fetchCourses = async (): Promise<Course[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('courses')
+            .select('*')
+            .order('id', { ascending: true });
+
+        if (error || !data) return [];
+
+        return data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            desc: item.description,
+            level: item.level,
+            duration: item.status === 'AVAILABLE' ? 'Module Actif' : 'À venir',
+            modules: [],
+            iconName: item.icon_name // On passera le nom de l'icône au composant
+        }));
+    } catch (e) {
+        return [];
+    }
+};
+
+export const fetchVocabulary = async (level: number = 1): Promise<VocabularyItem[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('vocabulary')
+            .select('*')
+            .eq('level', level);
+            
+        if (error || !data) return [];
+        
+        return data.map((item: any) => ({
+            id: item.id,
+            level: item.level,
+            fr: item.fr,
+            fon: item.fon,
+            options: item.options
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
+
 // --- GESTION DES PROFILS UTILISATEURS ---
 
-// Récupérer un profil par téléphone
 export const getProfileByPhone = async (phone: string): Promise<UserProfile | null> => {
     try {
         const { data, error } = await supabase
@@ -56,7 +126,6 @@ export const getProfileByPhone = async (phone: string): Promise<UserProfile | nu
     }
 };
 
-// Créer ou Mettre à jour un profil
 export const upsertProfile = async (profile: UserProfile): Promise<{ success: boolean; error?: string }> => {
     try {
         const dbProfile = {
@@ -75,6 +144,7 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
 
         if (error) {
             console.error("Erreur sauvegarde profil (Supabase):", error);
+            if (error.code === '42883') return { success: false, error: "Erreur config SQL (UUID/BigInt). Vérifiez les policies." };
             return { success: false, error: error.message };
         }
         return { success: true };
@@ -84,14 +154,86 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
     }
 };
 
-// Ajouter des XP en temps réel
 export const addXPToRemote = async (phone: string, amount: number) => {
     try {
-        const { data: current } = await supabase.from('profiles').select('xp').eq('phone', phone).single();
-        if (current) {
-            await supabase.from('profiles').update({ xp: current.xp + amount }).eq('phone', phone);
+        // Tentative d'appel RPC sécurisé
+        const { error } = await supabase.rpc('increment_xp', { user_phone: phone, xp_amount: amount });
+        
+        // Fallback si la fonction RPC n'existe pas encore
+        if (error) {
+            console.warn("RPC increment_xp échoué, fallback update manuel", error.message);
+            const { data: current } = await supabase.from('profiles').select('xp').eq('phone', phone).single();
+            if (current) {
+                await supabase.from('profiles').update({ xp: current.xp + amount }).eq('phone', phone);
+            }
         }
     } catch (e) {
         console.error("Impossible de sync XP", e);
     }
+};
+
+export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('name, archetype, xp, level')
+            .order('xp', { ascending: false })
+            .limit(10);
+            
+        if (error) return [];
+        
+        return data.map((entry: any) => ({
+            name: entry.name,
+            archetype: entry.archetype as Archetype,
+            xp: entry.xp,
+            level: entry.level
+        }));
+    } catch (e) {
+        return [];
+    }
+};
+
+// --- NEXUS (CHAT COMMUNAUTAIRE) ---
+
+export const fetchRecentMessages = async (): Promise<NexusMessage[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50);
+            
+        if (error || !data) return [];
+        return data.reverse() as NexusMessage[]; 
+    } catch (e) {
+        console.error("Erreur fetch messages", e);
+        return [];
+    }
+};
+
+export const sendMessageToNexus = async (userName: string, userPhone: string, archetype: string, content: string) => {
+    try {
+        const { error } = await supabase.from('messages').insert({
+            user_name: userName,
+            user_phone: userPhone,
+            archetype: archetype,
+            content: content
+        });
+        if (error) console.error("Erreur envoi message", error);
+    } catch (e) {
+        console.error("Exception envoi message", e);
+    }
+};
+
+export const subscribeToNexus = (onMessage: (msg: NexusMessage) => void) => {
+    return supabase
+        .channel('nexus_channel')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            (payload) => {
+                onMessage(payload.new as NexusMessage);
+            }
+        )
+        .subscribe();
 };
