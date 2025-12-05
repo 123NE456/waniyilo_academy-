@@ -1,7 +1,9 @@
 
-import React, { useState } from 'react';
-import { Newspaper, ArrowUpRight, Handshake, User, Phone, X, CheckCircle } from 'lucide-react';
-import { NewsItem, Section } from '../types';
+
+import React, { useState, useEffect } from 'react';
+import { Newspaper, ArrowUpRight, Handshake, User, Phone, X, CheckCircle, Loader2 } from 'lucide-react';
+import { NewsItem, Section, Partner } from '../types';
+import { fetchPartners } from '../services/supabase';
 
 interface PartnersProps {
     onNavigate: (section: Section) => void;
@@ -10,12 +12,21 @@ interface PartnersProps {
 export const PartnersAndNews: React.FC<PartnersProps> = ({ onNavigate }) => {
   const [showContactForm, setShowContactForm] = useState(false);
   const [formStep, setFormStep] = useState<'IDLE' | 'SUBMITTING' | 'SUCCESS'>('IDLE');
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
   
   const [formData, setFormData] = useState({
       nom: '',
       prenom: '',
       telephone: ''
   });
+
+  useEffect(() => {
+    fetchPartners().then(data => {
+        setPartners(data);
+        setLoadingPartners(false);
+    });
+  }, []);
 
   const news: NewsItem[] = [
     {
@@ -100,11 +111,16 @@ export const PartnersAndNews: React.FC<PartnersProps> = ({ onNavigate }) => {
              </div>
              
              <div className="grid grid-cols-2 gap-4">
-                {['G-CROWN CONSULTING', 'MINISTÈRE DU TOURISME', 'GOOGLE ARTS & CULTURE', 'UNIVERSITÉ D\'ABOMEY-CALAVI'].map((partner, idx) => (
-                  <div key={idx} className="h-24 glass-panel border border-white/5 flex items-center justify-center p-4 hover:bg-white/5 transition-colors group">
-                     <span className="text-center text-xs font-bold text-gray-500 group-hover:text-white transition-colors tracking-widest">{partner}</span>
-                  </div>
-                ))}
+                {loadingPartners ? (
+                    <div className="col-span-2 text-center text-gray-500"><Loader2 className="animate-spin inline mr-2"/> Chargement...</div>
+                ) : (
+                    partners.map((partner) => (
+                        <div key={partner.id} className="h-24 glass-panel border border-white/5 flex items-center justify-center p-4 hover:bg-white/5 transition-colors group relative overflow-hidden">
+                           <div className={`absolute top-0 right-0 w-2 h-2 rounded-bl ${partner.type === 'OFFICIAL' ? 'bg-vodoun-gold' : 'bg-gray-700'}`}></div>
+                           <span className="text-center text-xs font-bold text-gray-500 group-hover:text-white transition-colors tracking-widest">{partner.name}</span>
+                        </div>
+                    ))
+                )}
              </div>
 
              <div className="mt-10 p-6 rounded-xl bg-gradient-to-r from-vodoun-purple/10 to-transparent border border-vodoun-purple/20">

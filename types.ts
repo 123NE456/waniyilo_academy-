@@ -1,4 +1,5 @@
 
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -41,6 +42,7 @@ export interface NewsItem {
   date: string;
   category: 'Tech' | 'Culture' | 'Event';
   excerpt: string;
+  content?: string;
 }
 
 export interface Comment {
@@ -70,6 +72,7 @@ export interface UserProfile {
   xp: number; // Waniyilo Points (WP)
   badges: string[]; // IDs of unlocked badges
   joinedAt: string;
+  avatar_style?: string; // 'bottts', 'avataaars', 'shapes', etc.
 }
 
 export interface LeaderboardEntry {
@@ -77,6 +80,8 @@ export interface LeaderboardEntry {
     archetype: Archetype;
     xp: number;
     level: number;
+    avatar_style?: string;
+    matricule: string;
 }
 
 export interface NexusMessage {
@@ -86,6 +91,15 @@ export interface NexusMessage {
   archetype: string;
   content: string;
   created_at: string;
+}
+
+export interface PrivateMessage {
+    id: number;
+    sender_matricule: string;
+    receiver_matricule: string;
+    content: string;
+    created_at: string;
+    read: boolean;
 }
 
 export interface XPNotification {
@@ -100,6 +114,20 @@ export interface VocabularyItem {
     fr: string;
     fon: string;
     options: string[];
+}
+
+export interface Partner {
+    id: number;
+    name: string;
+    type: string;
+}
+
+export interface UserSummary {
+    matricule: string;
+    name: string;
+    phone: string;
+    level: number;
+    avatar_style: string;
 }
 
 export enum Section {

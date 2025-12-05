@@ -1,8 +1,11 @@
 
+
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem, Comment } from '../types';
+import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary } from '../types';
 
 // Configuration Supabase
+// SECURITY NOTE: Dans un vrai projet déployé, ces clés doivent être dans un fichier .env
+// et le fichier .env doit être ajouté au .gitignore pour ne pas être sur GitHub.
 const SUPABASE_URL = 'https://quemcztobbsqdlqftgyw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1ZW1jenRvYmJzcWRscWZ0Z3l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MTI1NjksImV4cCI6MjA4MDM4ODU2OX0.s-Al1jPolCYqfxyYULeTF2AD2B8J8HyrUmVX7a6j43A';
 
@@ -42,7 +45,8 @@ export const fetchNews = async (): Promise<NewsItem[]> => {
             title: item.title,
             category: item.category,
             excerpt: item.excerpt,
-            date: item.date_display
+            date: item.date_display,
+            content: item.content
         }));
     } catch (e) {
         return [];
@@ -67,6 +71,31 @@ export const deleteNews = async (id: string) => {
     } catch(e: any) {
         return { success: false, error: e.message };
     }
+}
+
+// --- PARTENAIRES ---
+export const fetchPartners = async (): Promise<Partner[]> => {
+    try {
+        const { data, error } = await supabase.from('partners').select('*');
+        if (error || !data) return [];
+        return data as Partner[];
+    } catch(e) { return []; }
+}
+
+export const addPartner = async (name: string, type: string) => {
+    try {
+        const { error } = await supabase.from('partners').insert({ name, type });
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export const deletePartner = async (id: number) => {
+    try {
+        const { error } = await supabase.from('partners').delete().eq('id', id);
+        return { success: !error };
+    } catch(e) { return { success: false }; }
 }
 
 // --- COMMENTAIRES ---
@@ -183,13 +212,26 @@ export const getProfileByMatricule = async (matricule: string): Promise<UserProf
             level: data.level,
             xp: data.xp,
             badges: data.badges || [],
-            joinedAt: data.created_at
+            joinedAt: data.created_at,
+            avatar_style: data.avatar_style || 'bottts'
         };
     } catch (e) {
         console.error("Erreur connexion Supabase", e);
         return null;
     }
 };
+
+// ADMIN: Récupérer tous les utilisateurs
+export const fetchAllUsers = async (): Promise<UserSummary[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('matricule, name, phone, level, avatar_style')
+            .order('created_at', { ascending: false });
+        if(error || !data) return [];
+        return data as UserSummary[];
+    } catch (e) { return []; }
+}
 
 // Génération Matricule et Auth
 export const upsertProfile = async (profile: UserProfile): Promise<{ success: boolean; error?: string; matricule?: string }> => {
@@ -210,6 +252,7 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
             level: profile.level,
             xp: profile.xp,
             badges: profile.badges,
+            avatar_style: 'bottts', // Default
             updated_at: new Date().toISOString()
         };
 
@@ -233,6 +276,13 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
     }
 };
 
+export const updateAvatar = async (matricule: string, style: string) => {
+    try {
+        await supabase.from('profiles').update({ avatar_style: style }).eq('matricule', matricule);
+        return true;
+    } catch (e) { return false; }
+}
+
 export const addXPToRemote = async (matricule: string, amount: number) => {
     try {
         // Tentative d'appel RPC sécurisé avec MATRICULE
@@ -255,7 +305,8 @@ export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
     try {
         const { data, error } = await supabase
             .from('profiles')
-            .select('name, archetype, xp, level')
+            .select('name, archetype, xp, level, avatar_style, matricule')
+            .neq('archetype', 'ADMIN') // EXCLUSION DE L'ADMIN
             .order('xp', { ascending: false })
             .limit(10);
             
@@ -265,7 +316,9 @@ export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
             name: entry.name,
             archetype: entry.archetype as Archetype,
             xp: entry.xp,
-            level: entry.level
+            level: entry.level,
+            avatar_style: entry.avatar_style,
+            matricule: entry.matricule
         }));
     } catch (e) {
         return [];
@@ -304,6 +357,13 @@ export const sendMessageToNexus = async (userName: string, userPhone: string, ar
     }
 };
 
+export const deleteNexusMessage = async (id: number) => {
+    try {
+        const { error } = await supabase.from('messages').delete().eq('id', id);
+        return { success: !error };
+    } catch (e) { return { success: false }; }
+}
+
 export const subscribeToNexus = (onMessage: (msg: NexusMessage) => void) => {
     return supabase
         .channel('nexus_channel')
@@ -316,3 +376,45 @@ export const subscribeToNexus = (onMessage: (msg: NexusMessage) => void) => {
         )
         .subscribe();
 };
+
+// --- MESSAGERIE PRIVÉE ---
+
+export const fetchPrivateMessages = async (myMatricule: string): Promise<PrivateMessage[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('private_messages')
+            .select('*')
+            .or(`sender_matricule.eq.${myMatricule},receiver_matricule.eq.${myMatricule}`)
+            .order('created_at', { ascending: true });
+            
+        if (error || !data) return [];
+        return data as PrivateMessage[];
+    } catch (e) { return []; }
+}
+
+export const sendPrivateMessage = async (sender: string, receiver: string, content: string) => {
+    try {
+        const { error } = await supabase.from('private_messages').insert({
+            sender_matricule: sender, receiver_matricule: receiver, content
+        });
+        return { success: !error };
+    } catch (e) { return { success: false }; }
+}
+
+export const subscribeToPrivateMessages = (myMatricule: string, onMessage: (msg: PrivateMessage) => void) => {
+    return supabase
+        .channel('private_messages')
+        .on(
+            'postgres_changes',
+            { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'private_messages',
+                filter: `receiver_matricule=eq.${myMatricule}`
+            },
+            (payload) => {
+                onMessage(payload.new as PrivateMessage);
+            }
+        )
+        .subscribe();
+}

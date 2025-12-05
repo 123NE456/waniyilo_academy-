@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Landmark } from '../types';
 import { X, ScanLine, Globe, Loader2, Languages, AlertCircle, MapPin, Navigation, Radar } from 'lucide-react';
@@ -10,7 +11,7 @@ const landmarks: Landmark[] = [
     id: '1', 
     name: 'Porte du Non-Retour', 
     description: 'Monument mémoriel de l\'esclavage.', 
-    details: 'Érigée en 1995 face à l\'océan Atlantique, cette arche monumentale marque l\'endroit d\'où des millions d\'Africains ont été déportés vers les Amériques. Elle symbolise la douleur du départ mais aussi le début de la diaspora africaine.',
+    details: 'Érigée en 1995 sur la plage de Ouidah, face à l\'océan Atlantique, cette arche monumentale marque le lieu symbolique où des millions d\'Africains ont été embarqués de force vers les Amériques. \n\nConçue par l\'architecte Yves Ahouen-Gnimon, elle est classée au patrimoine mondial de l\'UNESCO (Route de l\'Esclave). Les bas-reliefs illustrent la marche enchaînée des captifs, mais aussi les esprits (Egungun) qui veillent sur leur retour spirituel. C\'est un lieu de recueillement intense, où le silence de l\'océan porte la mémoire de la diaspora.',
     type: 'historical', 
     x: 50, 
     y: 80 
@@ -19,7 +20,7 @@ const landmarks: Landmark[] = [
     id: '2', 
     name: 'Temple des Pythons', 
     description: 'Sanctuaire sacré du culte Vodoun.', 
-    details: 'Situé au cœur de Ouidah, face à la Basilique, ce temple abrite des dizaines de pythons royaux (Python regius). Dans la mythologie locale, le python est une divinité bienveillante qui a protégé le roi Kpassè.',
+    details: 'Situé au cœur de Ouidah, face à la Basilique de l\'Immaculée Conception, ce temple incarne la coexistence pacifique des religions au Bénin. Il est dédié au Python Royal (Python regius), animal totem du clan Dangbéhoué.\n\nSelon la légende, lors d\'une guerre contre les Dahoméens au XVIIIe siècle, le roi Kpassè se serait réfugié dans la forêt où des pythons l\'auraient protégé. Depuis, ces serpents inoffensifs sont vénérés comme des ancêtres bienveillants. Les prêtres du temple assurent les rituels de purification et les cérémonies annuelles.',
     type: 'sacred', 
     x: 45, 
     y: 40 
@@ -28,7 +29,7 @@ const landmarks: Landmark[] = [
     id: '3', 
     name: 'Forêt Sacrée de Kpassè', 
     description: 'Lieu mystique et botanique.', 
-    details: 'Ancien domaine du roi Kpassè, fondateur de Ouidah. La légende raconte qu\'il ne serait pas mort mais se serait métamorphosé en un grand arbre Iroko pour échapper à ses ennemis.',
+    details: 'Ce domaine verdoyant abrite des arbres centenaires gigantesques, dont le célèbre Iroko sacré, qui serait la réincarnation du Roi Kpassè, fondateur de Ouidah. \n\nLa légende raconte que le roi, ne voulant pas mourir, s\'est métamorphosé en arbre pour échapper à ses ennemis. Aujourd\'hui, la forêt est un musée à ciel ouvert abritant des sculptures de divinités Vodoun (Lègba, Sakpata, Hêviosso) et sert de lieu de cérémonie pour les initiés. C\'est un poumon vert et spirituel unique.',
     type: 'nature', 
     x: 75, 
     y: 30 
@@ -37,7 +38,7 @@ const landmarks: Landmark[] = [
     id: '4', 
     name: 'Place Chacha', 
     description: 'Ancien marché aux esclaves.', 
-    details: 'C\'est ici que se tenait le marché aux enchères des esclaves. Les captifs étaient marqués au fer rouge avant d\'être conduits vers la plage. Aujourd\'hui, c\'est un lieu de mémoire.',
+    details: 'C\'est ici, devant la demeure de Francisco de Souza (le "Chacha"), que se tenait le sinistre marché aux enchères des esclaves. C\'était le point de départ de la Route des Esclaves.\n\nLes captifs y étaient marqués au fer rouge avant d\'entamer leur marche vers la plage. L\'arbre de l\'Oubli, autour duquel les hommes devaient tourner 9 fois et les femmes 7 fois pour oublier leur identité, se trouvait à proximité. C\'est aujourd\'hui un lieu de mémoire essentiel pour comprendre l\'organisation du commerce triangulaire.',
     type: 'historical', 
     x: 55, 
     y: 45 
@@ -46,7 +47,7 @@ const landmarks: Landmark[] = [
     id: '5', 
     name: 'Fondation Zinsou', 
     description: 'Art Contemporain Africain.', 
-    details: 'Installée dans la Villa Ajavon, une magnifique bâtisse afro-brésilienne de 1922, la Fondation Zinsou est un centre d\'art contemporain gratuit.',
+    details: 'Installée dans la Villa Ajavon, une magnifique bâtisse afro-brésilienne de 1922, la Fondation Zinsou est le premier centre d\'art contemporain gratuit en Afrique de l\'Ouest.\n\nElle a pour mission de promouvoir la création artistique africaine, d\'éduquer les jeunes populations à l\'art et de préserver le patrimoine. La villa elle-même est un chef-d\'œuvre architectural témoignant du retour des "Agudas" (Afro-Brésiliens) au Bénin.',
     type: 'historical', 
     x: 30, 
     y: 50 
