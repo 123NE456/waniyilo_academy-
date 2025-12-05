@@ -47,7 +47,10 @@ const PROVERBS = [
     "Si tu veux aller vite, marche seul. Si tu veux aller loin, marchons ensemble.",
     "Le mensonge donne des fleurs mais pas de fruits.",
     "Ce que le vieux voit assis, le jeune ne le voit pas debout.",
-    "L'intelligence n'est pas qu'une seule personne ait raison."
+    "L'intelligence n'est pas qu'une seule personne ait raison.",
+    "L'eau chaude n'oublie jamais qu'elle a été froide.",
+    "Le serpent ne mord pas celui qui connaît son sifflement.",
+    "La sagesse est comme un baobab : une seule personne ne peut l'embrasser."
 ];
 
 const BADGES_DEFINITIONS = [
@@ -242,7 +245,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       setNexusInput('');
       playSound('success');
       await sendMessageToNexus(userProfile.name, userProfile.phone, userProfile.archetype || '', content);
-      addXp(1, "Message Nexus");
+      // Removed XP for spam prevention
   };
 
   const handleDeleteNexusMessage = async (id: number) => {
@@ -275,7 +278,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               created_at: new Date().toISOString(),
               read: true
           }]);
-          addXp(2, "DM Envoyé");
       } else {
           alert("Erreur envoi. Vérifiez le matricule.");
       }
@@ -535,7 +537,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       const correct = currentWord.fon === selected;
       if (correct) {
           setGameScore(prev => prev + 1);
-          addXp(5, "Bonne réponse !");
+          addXp(2, "Bonne réponse !"); // Reduced XP
           playSound('success');
       } else {
           addXp(0, "Oups, essaie encore.");
@@ -545,7 +547,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           setGameIndex(prev => prev + 1);
       } else {
           setGameFinished(true);
-          addXp(20, "Niveau Terminé !");
+          addXp(10, "Niveau Terminé !"); // Reduced XP
           playSound('success');
       }
   };

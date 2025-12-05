@@ -20,6 +20,9 @@ export const checkSupabaseConnection = async (): Promise<{ ok: boolean; message:
             if (error.code === '42P01') {
                 return { ok: false, message: "Table 'profiles' introuvable. Lancez le script SQL." };
             }
+            if (error.code === '42883') {
+                return { ok: false, message: "Erreur SQL (UUID/BigInt). Supprimez les policies RLS incompatibles." };
+            }
             return { ok: false, message: `Erreur API: ${error.message}` };
         }
         return { ok: true, message: "Connexion établie. Table prête." };
@@ -152,6 +155,7 @@ export const fetchVocabulary = async (level: number = 1): Promise<VocabularyItem
         const { data, error } = await supabase
             .from('vocabulary')
             .select('*')
+            .order('id', { ascending: true }) // Ordre stable pour le quiz
             .eq('level', level);
             
         if (error || !data) return [];
@@ -256,8 +260,7 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
             updated_at: new Date().toISOString()
         };
 
-        // IMPORTANT : onConflict doit cibler une contrainte UNIQUE.
-        // Avec le nouveau script SQL, 'phone' est UNIQUE.
+        // On utilise 'phone' comme contrainte unique principale
         const { error } = await supabase
             .from('profiles')
             .upsert(dbProfile, { onConflict: 'phone' });
@@ -265,8 +268,7 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
         if (error) {
             console.error("Erreur sauvegarde profil (Supabase):", error);
             // Gestion erreur contrainte unique
-            if (error.code === '23505') return { success: false, error: "Ce numéro est déjà inscrit." };
-            if (error.code === '42883') return { success: false, error: "Erreur config SQL (UUID/BigInt)." };
+            if (error.code === '23505') return { success: false, error: "Ce numéro (ou matricule) est déjà inscrit." };
             return { success: false, error: error.message };
         }
         return { success: true, matricule: matriculeToUse };
@@ -288,7 +290,7 @@ export const addXPToRemote = async (matricule: string, amount: number) => {
         // Tentative d'appel RPC sécurisé avec MATRICULE
         const { error } = await supabase.rpc('increment_xp', { user_matricule: matricule, xp_amount: amount });
         
-        // Fallback update manuel (uniquement si RPC échoue et RLS permissif)
+        // Fallback update manuel (uniquement si RPC échoue)
         if (error) {
             console.warn("RPC increment_xp échoué, fallback update manuel", error.message);
             const { data: current } = await supabase.from('profiles').select('xp').eq('matricule', matricule).single();

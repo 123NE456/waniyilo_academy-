@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Newspaper, ArrowUpRight, Handshake, User, Phone, X, CheckCircle, Loader2 } from 'lucide-react';
 import { NewsItem, Section, Partner } from '../types';
-import { fetchPartners } from '../services/supabase';
+import { fetchPartners, fetchNews } from '../services/supabase';
 
 interface PartnersProps {
     onNavigate: (section: Section) => void;
@@ -14,6 +14,7 @@ export const PartnersAndNews: React.FC<PartnersProps> = ({ onNavigate }) => {
   const [formStep, setFormStep] = useState<'IDLE' | 'SUBMITTING' | 'SUCCESS'>('IDLE');
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
+  const [news, setNews] = useState<NewsItem[]>([]);
   
   const [formData, setFormData] = useState({
       nom: '',
@@ -26,31 +27,8 @@ export const PartnersAndNews: React.FC<PartnersProps> = ({ onNavigate }) => {
         setPartners(data);
         setLoadingPartners(false);
     });
+    fetchNews().then(data => setNews(data.slice(0, 3)));
   }, []);
-
-  const news: NewsItem[] = [
-    {
-      id: '1',
-      title: "Lancement du programme IA & Patrimoine",
-      date: "12 Oct 2025",
-      category: "Tech",
-      excerpt: "WANIYILO inaugure son premier datacenter alimenté par l'énergie solaire pour stocker les archives 3D."
-    },
-    {
-      id: '2',
-      title: "Vodoun Day 2026 : Le programme",
-      date: "05 Nov 2025",
-      category: "Event",
-      excerpt: "Une édition spéciale intégrant des hologrammes de figures historiques dans les rues de Ouidah."
-    },
-    {
-      id: '3',
-      title: "Partenariat avec G-CROWN",
-      date: "20 Nov 2025",
-      category: "Culture",
-      excerpt: "Signature d'une convention stratégique pour la numérisation des couvents sacrés."
-    }
-  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -83,7 +61,7 @@ export const PartnersAndNews: React.FC<PartnersProps> = ({ onNavigate }) => {
              </div>
              
              <div className="space-y-6">
-                {news.map((item) => (
+                {news.length === 0 ? <p className="text-gray-500">Aucune actualité.</p> : news.map((item) => (
                   <div key={item.id} className="group cursor-pointer">
                     <div className="flex justify-between items-start mb-2">
                        <span className="text-xs font-mono text-vodoun-orange border border-vodoun-orange/30 px-2 rounded">{item.category}</span>

@@ -10,8 +10,8 @@ const landmarks: Landmark[] = [
   { 
     id: '1', 
     name: 'Porte du Non-Retour', 
-    description: 'Monument mémoriel de l\'esclavage.', 
-    details: 'Érigée en 1995 sur la plage de Ouidah, face à l\'océan Atlantique, cette arche monumentale marque le lieu symbolique où des millions d\'Africains ont été embarqués de force vers les Amériques. \n\nConçue par l\'architecte Yves Ahouen-Gnimon, elle est classée au patrimoine mondial de l\'UNESCO (Route de l\'Esclave). Les bas-reliefs illustrent la marche enchaînée des captifs, mais aussi les esprits (Egungun) qui veillent sur leur retour spirituel. C\'est un lieu de recueillement intense, où le silence de l\'océan porte la mémoire de la diaspora.',
+    description: 'Lieu de mémoire de la traite transatlantique.', 
+    details: 'Monument emblématique érigé en 1995 sur la plage de Djègbadji à Ouidah, la Porte du Non-Retour symbolise le point ultime du départ des millions de captifs africains déportés vers les Amériques. Classée au patrimoine mondial de l\'UNESCO dans le cadre de "La Route de l\'Esclave", cette arche de béton et de bronze, ornée de bas-reliefs, représente la transition brutale entre la terre natale et l\'exil forcé. Les esprits Egungun y sont représentés pour signifier que si les corps sont partis, les âmes des ancêtres reviennent toujours vers la terre mère.',
     type: 'historical', 
     x: 50, 
     y: 80 
@@ -20,7 +20,7 @@ const landmarks: Landmark[] = [
     id: '2', 
     name: 'Temple des Pythons', 
     description: 'Sanctuaire sacré du culte Vodoun.', 
-    details: 'Situé au cœur de Ouidah, face à la Basilique de l\'Immaculée Conception, ce temple incarne la coexistence pacifique des religions au Bénin. Il est dédié au Python Royal (Python regius), animal totem du clan Dangbéhoué.\n\nSelon la légende, lors d\'une guerre contre les Dahoméens au XVIIIe siècle, le roi Kpassè se serait réfugié dans la forêt où des pythons l\'auraient protégé. Depuis, ces serpents inoffensifs sont vénérés comme des ancêtres bienveillants. Les prêtres du temple assurent les rituels de purification et les cérémonies annuelles.',
+    details: 'Situé face à la Basilique de l\'Immaculée Conception, ce temple incarne le synchrétisme religieux béninois. Il abrite des dizaines de pythons royaux (Python regius), vénérés comme la réincarnation des ancêtres du clan Dangbéhoué. Historiquement, ces serpents auraient sauvé le Roi Kpassè lors d\'une guerre au XVIIIe siècle en lui permettant de se camoufler dans la forêt. Le temple est un centre actif de purification et de cérémonies, où les adeptes viennent chercher protection et bénédiction.',
     type: 'sacred', 
     x: 45, 
     y: 40 
@@ -28,8 +28,8 @@ const landmarks: Landmark[] = [
   { 
     id: '3', 
     name: 'Forêt Sacrée de Kpassè', 
-    description: 'Lieu mystique et botanique.', 
-    details: 'Ce domaine verdoyant abrite des arbres centenaires gigantesques, dont le célèbre Iroko sacré, qui serait la réincarnation du Roi Kpassè, fondateur de Ouidah. \n\nLa légende raconte que le roi, ne voulant pas mourir, s\'est métamorphosé en arbre pour échapper à ses ennemis. Aujourd\'hui, la forêt est un musée à ciel ouvert abritant des sculptures de divinités Vodoun (Lègba, Sakpata, Hêviosso) et sert de lieu de cérémonie pour les initiés. C\'est un poumon vert et spirituel unique.',
+    description: 'Domaine mystique du fondateur de Ouidah.', 
+    details: 'Cette enclave de végétation dense en plein cœur de la ville abrite l\'esprit du Roi Kpassè, fondateur de Ouidah. La légende raconte qu\'il ne serait jamais mort, mais se serait métamorphosé en un immense Iroko pour échapper à ses ennemis. Ce lieu, interdit aux non-initiés pendant des siècles, est aujourd\'hui un musée à ciel ouvert présentant les divinités du panthéon Vodoun (Lègba, Hêviosso, Sakpata). C\'est un espace de connexion intense avec les forces de la nature.',
     type: 'nature', 
     x: 75, 
     y: 30 
@@ -38,7 +38,7 @@ const landmarks: Landmark[] = [
     id: '4', 
     name: 'Place Chacha', 
     description: 'Ancien marché aux esclaves.', 
-    details: 'C\'est ici, devant la demeure de Francisco de Souza (le "Chacha"), que se tenait le sinistre marché aux enchères des esclaves. C\'était le point de départ de la Route des Esclaves.\n\nLes captifs y étaient marqués au fer rouge avant d\'entamer leur marche vers la plage. L\'arbre de l\'Oubli, autour duquel les hommes devaient tourner 9 fois et les femmes 7 fois pour oublier leur identité, se trouvait à proximité. C\'est aujourd\'hui un lieu de mémoire essentiel pour comprendre l\'organisation du commerce triangulaire.',
+    details: 'Devant la demeure de Francisco de Souza (dit le "Chacha"), vice-roi de Ouidah, se tenait ce marché sinistre. C\'est ici que les captifs provenant de l\'intérieur des terres étaient parqués, triés et marqués au fer rouge avant d\'être vendus aux négriers européens. Au centre de la place se trouve un arbre centenaire symbolisant l\'Arbre de l\'Oubli, autour duquel les hommes devaient tourner 9 fois et les femmes 7 fois pour effacer leur mémoire avant la traversée. Un lieu chargé d\'histoire tragique.',
     type: 'historical', 
     x: 55, 
     y: 45 
@@ -46,8 +46,8 @@ const landmarks: Landmark[] = [
   { 
     id: '5', 
     name: 'Fondation Zinsou', 
-    description: 'Art Contemporain Africain.', 
-    details: 'Installée dans la Villa Ajavon, une magnifique bâtisse afro-brésilienne de 1922, la Fondation Zinsou est le premier centre d\'art contemporain gratuit en Afrique de l\'Ouest.\n\nElle a pour mission de promouvoir la création artistique africaine, d\'éduquer les jeunes populations à l\'art et de préserver le patrimoine. La villa elle-même est un chef-d\'œuvre architectural témoignant du retour des "Agudas" (Afro-Brésiliens) au Bénin.',
+    description: 'Centre d\'art contemporain africain.', 
+    details: 'Installée dans la Villa Ajavon, magnifique bâtiment de style afro-brésilien construit en 1922, la Fondation Zinsou est un pionnier de la promotion artistique en Afrique de l\'Ouest. Elle offre un espace gratuit dédié à la création contemporaine africaine, tout en valorisant le patrimoine architectural. La villa témoigne de l\'influence des Agudas (Afro-Brésiliens revenus au Bénin) et sert aujourd\'hui de pont entre l\'histoire coloniale et l\'effervescence artistique moderne du continent.',
     type: 'historical', 
     x: 30, 
     y: 50 
