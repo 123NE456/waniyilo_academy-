@@ -2,17 +2,15 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dotenv from 'dotenv';
 
-dotenv.config(); // charge les variables depuis .env.local ou .env
+dotenv.config(); // optionnel si tu utilises déjà Vercel Environment Variables
 
-// 🔐 seules les variables commençant par VITE_ sont exposées au frontend
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,
+    host: true
   },
   define: {
-    __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV), // variable globale si nécessaire
-    'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
-    // ajoute ici d'autres variables nécessaires
+    __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV),
+    'process.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY),
   },
 });
