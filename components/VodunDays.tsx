@@ -1,16 +1,16 @@
-
-
-
-
-
-
-import React, { useState, useEffect } from 'react';
-import { Flame, Calendar, MapPin, Music, Ticket, Star, ArrowRight, History, Handshake, Users, Globe, Image, Loader2, Link as LinkIcon, Navigation } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Flame, MapPin, History, Handshake, Star, Image, Loader2, Navigation, Hotel, Fuel, ArrowRight, Lock } from 'lucide-react';
 import { VodunArchive, VodunLocation, Section, Partner } from '../types';
 import { fetchVodunLocations, fetchVodunArchives, fetchPartners } from '../services/supabase';
 
 interface VodunDaysProps {
     onNavigate?: (section: Section) => void;
+}
+
+declare global {
+    interface Window {
+        L: any;
+    }
 }
 
 export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
@@ -19,6 +19,11 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
   const [archives, setArchives] = useState<VodunArchive[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // MAP STATE
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const [isMapInteractive, setIsMapInteractive] = useState(false); // BLOQUER PAR DÉFAUT
 
   useEffect(() => {
     const targetDate = new Date('2026-01-10T00:00:00').getTime();
@@ -48,6 +53,79 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Initialize Map
+  useEffect(() => {
+      if (!loading && locations.length > 0 && mapContainerRef.current && window.L && !mapInstanceRef.current) {
+          try {
+              // Centré sur Ouidah
+              const map = window.L.map(mapContainerRef.current, {
+                  scrollWheelZoom: false, // Désactivé par défaut
+                  dragging: false,       // Désactivé par défaut
+                  touchZoom: false,      // Désactivé par défaut
+                  zoomControl: false     // On cache les contrôles tant que pas actif
+              }).setView([6.366, 2.085], 13);
+              
+              // Dark Mode Tiles (CartoDB Dark Matter)
+              window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                  attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                  subdomains: 'abcd',
+                  maxZoom: 19
+              }).addTo(map);
+
+              mapInstanceRef.current = map;
+
+              // Custom Icons
+              const createIcon = (color: string) => {
+                  return window.L.divIcon({
+                      className: 'custom-div-icon',
+                      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px ${color};"></div>`,
+                      iconSize: [12, 12],
+                      iconAnchor: [6, 6]
+                  });
+              };
+
+              locations.forEach(loc => {
+                  if (loc.map_coords) {
+                      const [lat, lng] = loc.map_coords.split(',').map(Number);
+                      if (!isNaN(lat) && !isNaN(lng)) {
+                          let color = '#F59E0B'; // Gold default
+                          if (loc.type === 'Hôtel') color = '#3B82F6'; // Blue
+                          if (loc.type === 'Station') color = '#EF4444'; // Red
+                          if (loc.type === 'Nature') color = '#10B981'; // Green
+
+                          const marker = window.L.marker([lat, lng], { icon: createIcon(color) }).addTo(map);
+                          
+                          // Custom Popup
+                          const popupContent = `
+                            <div style="font-family: 'Inter', sans-serif; color: #333; text-align: center;">
+                                <strong style="font-size: 14px; display: block; margin-bottom: 4px;">${loc.name}</strong>
+                                <span style="font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px;">${loc.type}</span>
+                                <br/>
+                                <span style="font-size: 11px; font-weight: bold; color: #F59E0B;">★ ${loc.rating}</span>
+                            </div>
+                          `;
+                          marker.bindPopup(popupContent);
+                      }
+                  }
+              });
+
+          } catch (e) {
+              console.error("Leaflet init error", e);
+          }
+      }
+  }, [loading, locations]);
+
+  // GESTION DE L'ACTIVATION DE LA CARTE
+  const enableMapInteraction = () => {
+      if (mapInstanceRef.current) {
+          mapInstanceRef.current.dragging.enable();
+          mapInstanceRef.current.touchZoom.enable();
+          mapInstanceRef.current.scrollWheelZoom.enable();
+          // Ajouter le contrôle de zoom si on veut
+      }
+      setIsMapInteractive(true);
+  };
 
   return (
     <div className="min-h-screen bg-black text-white pt-20 overflow-hidden relative pb-24">
@@ -89,53 +167,87 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* CARTE INTERACTIVE DU FESTIVAL */}
-        <div className="border border-vodoun-gold/30 rounded-2xl bg-black/50 overflow-hidden relative h-96">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-            <div className="absolute top-4 left-4 z-10 bg-black/80 px-4 py-2 rounded-full border border-white/10">
-                <span className="text-vodoun-gold font-bold flex items-center gap-2"><MapPin size={16}/> CARTOGRAPHIE DES FESTIVITÉS</span>
+        {/* CARTE OPENSTREETMAP INTERACTIVE AVEC OVERLAY */}
+        <div className="space-y-4">
+            <div className="text-center mb-8">
+                <h2 className="text-3xl font-display font-bold text-white mb-2 flex items-center justify-center gap-3">
+                    <MapPin className="text-vodoun-orange" /> GÉOLOCALISATION
+                </h2>
+                <p className="text-gray-400">Repérez les événements, hôtels et stations à Ouidah et Porto-Novo.</p>
             </div>
-            {locations.map(loc => {
-                if(!loc.map_coords) return null;
-                const [x, y] = loc.map_coords.split(',');
-                return (
-                    <div key={loc.id} className="absolute group cursor-pointer" style={{ left: `${x}%`, top: `${y}%` }}>
-                        <div className="w-4 h-4 rounded-full bg-vodoun-red animate-ping absolute"></div>
-                        <div className="w-4 h-4 rounded-full bg-vodoun-red relative z-10 border-2 border-white"></div>
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-xs font-bold px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                            {loc.name}
-                        </div>
+            
+            <div className="relative h-[500px] w-full rounded-3xl overflow-hidden border border-vodoun-gold/30 shadow-2xl z-10 group">
+                {/* LA CARTE */}
+                <div id="map-container" ref={mapContainerRef} className="w-full h-full bg-gray-900"></div>
+                
+                {/* OVERLAY DE PROTECTION (Si non interactif) */}
+                {!isMapInteractive && !loading && (
+                    <div className="absolute inset-0 z-[500] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center cursor-pointer transition-opacity" onClick={enableMapInteraction}>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); enableMapInteraction(); }}
+                            className="px-8 py-4 bg-vodoun-gold hover:bg-white text-black font-bold font-tech rounded-full shadow-[0_0_30px_rgba(245,158,11,0.5)] transition-all transform hover:scale-105 flex items-center gap-3"
+                        >
+                            <Navigation size={20} /> ACTIVER LA CARTE INTERACTIVE
+                        </button>
+                        <p className="mt-4 text-gray-300 text-sm flex items-center gap-2">
+                            <Lock size={14} /> Navigation verrouillée pour faciliter le défilement
+                        </p>
                     </div>
-                );
-            })}
+                )}
+
+                {loading && (
+                    <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
+                        <Loader2 className="animate-spin text-vodoun-gold" size={48} />
+                    </div>
+                )}
+            </div>
+            <div className="flex justify-center gap-4 text-xs font-mono text-gray-500 flex-wrap">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-vodoun-gold inline-block"></span> LIEUX VODUN</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> HÔTELS</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> STATIONS</span>
+            </div>
         </div>
 
-        {/* GUIDE DU FESTIVALIER (TOURISME) */}
+        {/* GUIDE DU FESTIVALIER (LISTE DÉTAILLÉE) */}
         <div>
             <div className="text-center mb-12">
                 <h2 className="text-4xl font-display font-bold text-white mb-4 flex items-center justify-center gap-3">
-                    <MapPin className="text-vodoun-orange" /> GUIDE DU FESTIVALIER
+                    <Navigation className="text-vodoun-green" /> GUIDE TOURISTIQUE
                 </h2>
-                <p className="text-gray-400">Les lieux incontournables à visiter pour une expérience complète.</p>
             </div>
             {loading ? <div className="text-center"><Loader2 className="animate-spin inline"/></div> : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {locations.map((loc) => (
-                        <div key={loc.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-vodoun-orange/50 transition-all group flex flex-col">
+                        <div key={loc.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-vodoun-green/50 transition-all group flex flex-col">
                             <div className="h-48 overflow-hidden relative shrink-0">
                                 <img src={loc.img_url} alt={loc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white font-bold flex items-center gap-1">
                                     <Star size={12} className="text-vodoun-gold fill-vodoun-gold" /> {loc.rating}
                                 </div>
+                                <div className="absolute bottom-2 left-2 bg-vodoun-purple/80 px-2 py-1 rounded text-[10px] text-white font-bold uppercase">
+                                    {loc.type}
+                                </div>
                             </div>
                             <div className="p-6 flex flex-col flex-1">
-                                <span className="text-xs font-mono text-vodoun-orange uppercase tracking-widest">{loc.type}</span>
-                                <h3 className="text-xl font-bold text-white mt-2 mb-2">{loc.name}</h3>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xl font-bold text-white">{loc.name}</h3>
+                                    {loc.type === 'Hôtel' && <Hotel size={16} className="text-blue-400" />}
+                                    {loc.type === 'Station' && <Fuel size={16} className="text-red-400" />}
+                                </div>
                                 {loc.description_long && (
                                     <p className="text-sm text-gray-400 mb-4 line-clamp-4 flex-1">{loc.description_long}</p>
                                 )}
                                 <div className="flex items-center justify-between mt-auto border-t border-white/5 pt-4">
-                                    <span className="text-xs text-gray-500">{loc.reviews} Avis Vérifiés</span>
+                                    <span className="text-xs text-gray-500">{loc.reviews} Avis</span>
+                                    <button 
+                                        onClick={() => {
+                                            document.getElementById('map-container')?.scrollIntoView({ behavior: 'smooth' });
+                                            // Optional: Trigger map popup open if logical link existed
+                                        }}
+                                        className="text-xs text-vodoun-green hover:text-white flex items-center gap-1"
+                                    >
+                                        Voir sur carte <ArrowRight size={12}/>
+                                    </button>
                                 </div>
                             </div>
                         </div>

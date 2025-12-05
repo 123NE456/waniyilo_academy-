@@ -27,15 +27,23 @@ export default {
         'float': 'float 6s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
         'spin-slow': 'spin 12s linear infinite',
+        'spin-very-slow': 'spin 60s linear infinite',
+        'spin-reverse-slow': 'spin-reverse 45s linear infinite',
+        'drift': 'drift 20s ease-in-out infinite',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-20px)' },
         },
-        glow: {
-          'from': { boxShadow: '0 0 10px #7C3AED, 0 0 20px #7C3AED' },
-          'to': { boxShadow: '0 0 20px #DC2626, 0 0 30px #DC2626' },
+        'spin-reverse': {
+          'from': { transform: 'rotate(360deg)' },
+          'to': { transform: 'rotate(0deg)' },
+        },
+        drift: {
+          '0%': { transform: 'translateX(0) translateY(0)' },
+          '50%': { transform: 'translateX(50px) translateY(-20px)' },
+          '100%': { transform: 'translateX(0) translateY(0)' },
         }
       }
     },

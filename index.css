@@ -39,29 +39,61 @@ body {
   background: #DC2626; 
 }
 
-/* Fallback Keyframes if Tailwind script lags */
+/* --- ANIMATIONS PERSONNALISÉES FLUIDES --- */
+
+/* Flottement organique */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-20px); }
 }
 
+/* Rotation très lente pour les motifs de fond */
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* Rotation inverse */
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
 }
 
-/* Explicit classes for critical animations */
+/* Pulsation douce (Respiration) */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.95); }
+}
+
+/* Dérive latérale (pour la brume/nuages) */
+@keyframes drift {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(50px) translateY(-20px); }
+  100% { transform: translateX(0) translateY(0); }
+}
+
+/* Lueurs Néon */
+@keyframes glow {
+  'from': { boxShadow: '0 0 10px #7C3AED, 0 0 20px #7C3AED' },
+  'to': { boxShadow: '0 0 20px #DC2626, 0 0 30px #DC2626' },
+}
+
+/* Classes utilitaires pour les animations */
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 .animate-spin-slow {
-  animation: spin-slow 12s linear infinite;
+  animation: spin-slow 20s linear infinite;
+}
+.animate-spin-very-slow {
+  animation: spin-slow 60s linear infinite;
+}
+.animate-spin-reverse-slow {
+  animation: spin-reverse 45s linear infinite;
 }
 .animate-pulse-slow {
-  animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: pulse-slow 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.animate-drift {
+  animation: drift 20s ease-in-out infinite;
 }
