@@ -100,9 +100,9 @@ export const fetchPartners = async (): Promise<Partner[]> => {
     } catch(e) { return []; }
 }
 
-export const addPartner = async (name: string, type: string) => {
+export const addPartner = async (name: string, type: string, website_url?: string) => {
     try {
-        const { error } = await supabase.from('partners').insert({ name, type });
+        const { error } = await supabase.from('partners').insert({ name, type, website_url });
         return { success: !error, error: error?.message };
     } catch(e: any) {
         return { success: false, error: e.message };
@@ -125,9 +125,11 @@ export const fetchVodunLocations = async (): Promise<VodunLocation[]> => {
     } catch(e) { return []; }
 }
 
-export const addVodunLocation = async (name: string, type: string, img_url: string) => {
+export const addVodunLocation = async (name: string, type: string, img_url: string, description_long: string, map_coords: string) => {
     try {
-        const { error } = await supabase.from('vodun_locations').insert({ name, type, img_url });
+        const { error } = await supabase.from('vodun_locations').insert({ 
+            name, type, img_url, description_long, map_coords 
+        });
         return { success: !error };
     } catch(e) { return { success: false }; }
 }

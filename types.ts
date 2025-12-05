@@ -120,6 +120,7 @@ export interface Partner {
     id: number;
     name: string;
     type: string;
+    website_url?: string;
 }
 
 export interface UserSummary {
@@ -137,6 +138,8 @@ export interface VodunLocation {
     rating: number;
     reviews: number;
     img_url: string;
+    description_long?: string;
+    map_coords?: string; // "x,y"
 }
 
 export interface VodunArchive {

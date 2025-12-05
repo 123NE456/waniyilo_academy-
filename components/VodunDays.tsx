@@ -1,7 +1,11 @@
 
 
+
+
+
+
 import React, { useState, useEffect } from 'react';
-import { Flame, Calendar, MapPin, Music, Ticket, Star, ArrowRight, History, Handshake, Users, Globe, Image, Loader2 } from 'lucide-react';
+import { Flame, Calendar, MapPin, Music, Ticket, Star, ArrowRight, History, Handshake, Users, Globe, Image, Loader2, Link as LinkIcon, Navigation } from 'lucide-react';
 import { VodunArchive, VodunLocation, Section, Partner } from '../types';
 import { fetchVodunLocations, fetchVodunArchives, fetchPartners } from '../services/supabase';
 
@@ -45,12 +49,6 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleViewOnMap = () => {
-      if (onNavigate) {
-          onNavigate(Section.CULTURE);
-      }
-  }
-
   return (
     <div className="min-h-screen bg-black text-white pt-20 overflow-hidden relative pb-24">
       {/* Background Video/Image Overlay */}
@@ -91,28 +89,28 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* CULTURE & ESPRIT */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-                <h2 className="text-4xl font-display font-bold text-white flex items-center gap-3">
-                    <Globe className="text-vodoun-green" /> L'ESPRIT DU VODOUN
-                </h2>
-                <p className="text-gray-300 text-lg leading-relaxed text-justify">
-                    Loin des clichés, le Vodoun est une célébration de la vie, de la nature et des ancêtres. C'est une philosophie d'harmonie universelle où chaque élément – l'eau, la terre, le feu, l'air – possède une âme.
-                    <br/><br/>
-                    Durant les Vodun Days, Ouidah devient la capitale mondiale de cette spiritualité bienveillante. C'est un moment de reconnexion, de purification et de joie partagée à travers la danse, les rythmes sacrés et les arts visuels.
-                </p>
-                <div className="flex gap-4">
-                    <div className="px-4 py-2 bg-white/5 rounded border border-white/10 text-sm">🌿 Respect de la Nature</div>
-                    <div className="px-4 py-2 bg-white/5 rounded border border-white/10 text-sm">🔥 Force des Ancêtres</div>
-                </div>
+        {/* CARTE INTERACTIVE DU FESTIVAL */}
+        <div className="border border-vodoun-gold/30 rounded-2xl bg-black/50 overflow-hidden relative h-96">
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+            <div className="absolute top-4 left-4 z-10 bg-black/80 px-4 py-2 rounded-full border border-white/10">
+                <span className="text-vodoun-gold font-bold flex items-center gap-2"><MapPin size={16}/> CARTOGRAPHIE DES FESTIVITÉS</span>
             </div>
-            <div className="glass-panel p-2 rounded-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
-                <img src="https://images.unsplash.com/photo-1535905557558-afc4877a26fc?q=80&w=2574&auto=format&fit=crop" alt="Culture" className="rounded-xl w-full h-80 object-cover grayscale hover:grayscale-0 transition-all duration-700" />
-            </div>
+            {locations.map(loc => {
+                if(!loc.map_coords) return null;
+                const [x, y] = loc.map_coords.split(',');
+                return (
+                    <div key={loc.id} className="absolute group cursor-pointer" style={{ left: `${x}%`, top: `${y}%` }}>
+                        <div className="w-4 h-4 rounded-full bg-vodoun-red animate-ping absolute"></div>
+                        <div className="w-4 h-4 rounded-full bg-vodoun-red relative z-10 border-2 border-white"></div>
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-white text-black text-xs font-bold px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            {loc.name}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
 
-        {/* CARTE & GUIDE FESTIVALIER */}
+        {/* GUIDE DU FESTIVALIER (TOURISME) */}
         <div>
             <div className="text-center mb-12">
                 <h2 className="text-4xl font-display font-bold text-white mb-4 flex items-center justify-center gap-3">
@@ -121,66 +119,29 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
                 <p className="text-gray-400">Les lieux incontournables à visiter pour une expérience complète.</p>
             </div>
             {loading ? <div className="text-center"><Loader2 className="animate-spin inline"/></div> : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {locations.map((loc) => (
-                        <div key={loc.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-vodoun-orange/50 transition-all group">
-                            <div className="h-48 overflow-hidden relative">
+                        <div key={loc.id} className="glass-panel rounded-2xl overflow-hidden border border-white/10 hover:border-vodoun-orange/50 transition-all group flex flex-col">
+                            <div className="h-48 overflow-hidden relative shrink-0">
                                 <img src={loc.img_url} alt={loc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white font-bold flex items-center gap-1">
                                     <Star size={12} className="text-vodoun-gold fill-vodoun-gold" /> {loc.rating}
                                 </div>
                             </div>
-                            <div className="p-6">
+                            <div className="p-6 flex flex-col flex-1">
                                 <span className="text-xs font-mono text-vodoun-orange uppercase tracking-widest">{loc.type}</span>
                                 <h3 className="text-xl font-bold text-white mt-2 mb-2">{loc.name}</h3>
-                                <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-4">
+                                {loc.description_long && (
+                                    <p className="text-sm text-gray-400 mb-4 line-clamp-4 flex-1">{loc.description_long}</p>
+                                )}
+                                <div className="flex items-center justify-between mt-auto border-t border-white/5 pt-4">
                                     <span className="text-xs text-gray-500">{loc.reviews} Avis Vérifiés</span>
-                                    <button onClick={handleViewOnMap} className="text-sm font-bold text-white hover:text-vodoun-orange transition-colors flex items-center gap-1">
-                                        VOIR SUR CARTE <ArrowRight size={14} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
-        </div>
-
-        {/* LINE UP */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-           <div className="glass-panel p-8 rounded-2xl border-l-4 border-l-vodoun-red">
-              <h2 className="text-3xl font-display font-bold mb-6 flex items-center gap-3">
-                 <Music size={32} className="text-vodoun-red" /> SCÈNE SACRÉE
-              </h2>
-              <ul className="space-y-4">
-                 {['Orchestres Traditionnels de Ouidah', 'Fusion Electro-Vodoun', 'Les Gardiens du Temple', 'Performance Arts Numériques'].map((item, i) => (
-                    <li key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/5">
-                        <span className="text-vodoun-gold font-mono">0{i+1}</span>
-                        <span className="text-lg font-bold">{item}</span>
-                    </li>
-                 ))}
-              </ul>
-           </div>
-
-           <div className="glass-panel p-8 rounded-2xl border-r-4 border-r-vodoun-gold text-right">
-              <h2 className="text-3xl font-display font-bold mb-6 flex items-center justify-end gap-3">
-                 PROGRAMME <Calendar size={32} className="text-vodoun-gold" />
-              </h2>
-              <div className="space-y-6">
-                 <div>
-                    <h3 className="text-xl font-bold text-vodoun-gold">9 JANVIER</h3>
-                    <p className="text-gray-400">Procession des Fidèles & Cérémonie d'Ouverture</p>
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-bold text-vodoun-gold">10 JANVIER</h3>
-                    <p className="text-gray-400">Grande Célébration Nationale - Place des Fêtes</p>
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-bold text-vodoun-gold">11 JANVIER</h3>
-                    <p className="text-gray-400">Concerts & Clôture Artistique</p>
-                 </div>
-              </div>
-           </div>
         </div>
 
         {/* ARCHIVES & ALBUMS */}
@@ -214,36 +175,28 @@ export const VodunDays: React.FC<VodunDaysProps> = ({ onNavigate }) => {
              )}
         </div>
 
-        {/* PARTENAIRES EVENT */}
+        {/* PARTENAIRES EVENT (CLIQUABLES) */}
         <div className="bg-white/5 rounded-3xl p-10 text-center">
             <h3 className="text-lg font-bold text-gray-400 mb-8 uppercase tracking-widest flex items-center justify-center gap-2">
                 <Handshake size={16} /> Partenaires Officiels Vodun Days
             </h3>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
+            <div className="flex flex-wrap justify-center gap-8 md:gap-16">
                 {partners.map((p, i) => (
-                    <div key={i} className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center font-bold text-xl text-white">
+                    <a 
+                        key={i} 
+                        href={p.website_url || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-2 group opacity-70 hover:opacity-100 transition-opacity"
+                    >
+                        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center font-bold text-xl text-white group-hover:bg-vodoun-gold group-hover:text-black transition-colors">
                             {p.name.charAt(0)}
                         </div>
                         <span className="text-sm font-bold text-white">{p.name}</span>
                         <span className="text-[10px] text-gray-500 uppercase">{p.type}</span>
-                    </div>
+                    </a>
                 ))}
             </div>
-        </div>
-
-        {/* CTA */}
-        <div className="text-center bg-gradient-to-r from-vodoun-red to-vodoun-purple p-12 rounded-3xl relative overflow-hidden group">
-           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-           <div className="relative z-10">
-              <h2 className="text-4xl font-display font-bold mb-6">RÉSERVEZ VOTRE PASS</h2>
-              <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-                 L'accès aux sites sacrés et aux concerts VIP est limité. Rejoignez la communauté Waniyilo pour un accès prioritaire.
-              </p>
-              <button className="px-10 py-5 bg-white text-black font-black font-tech text-xl uppercase rounded-full hover:scale-105 transition-transform shadow-[0_0_50px_rgba(255,255,255,0.5)] flex items-center gap-3 mx-auto">
-                 <Ticket size={24} /> ACHETER MON BILLET <ArrowRight />
-              </button>
-           </div>
         </div>
 
       </div>

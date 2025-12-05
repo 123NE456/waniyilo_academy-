@@ -1,4 +1,8 @@
 
+
+
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, X, Loader2, Sparkles, Volume2, Mic } from 'lucide-react';
 import { ChatMessage } from '../types';
@@ -87,7 +91,7 @@ export const AIChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
         <div className="mb-4 w-[90vw] sm:w-[400px] h-[500px] glass-panel rounded-2xl border border-vodoun-gold/30 flex flex-col overflow-hidden shadow-[0_0_30px_rgba(124,58,237,0.2)] animate-float">

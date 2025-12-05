@@ -1,6 +1,10 @@
 
 
 
+
+
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake, Flame, MapPin, Image } from 'lucide-react';
 import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
@@ -86,11 +90,10 @@ interface AcademyProps {
     onLogout?: () => void;
 }
 
-// HELPER FUNCTION MOVED INSIDE COMPONENT FILE
 const getAvatarInitials = (name: string) => {
     if (!name) return '??';
     return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-  };
+};
 
 export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersive, onLogout }) => {
   const [stage, setStage] = useState<Stage>(initialProfile ? 'DASHBOARD' : 'LOCKED');
@@ -98,15 +101,13 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [answers, setAnswers] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(initialProfile || null);
   const [xpNotifications, setXpNotifications] = useState<XPNotification[]>([]);
+  const [showConfetti, setShowConfetti] = useState(false); // JOIE
   
   // Registration & Login Data
   const [regData, setRegData] = useState({ name: '', phone: '' }); 
   const [loginMatricule, setLoginMatricule] = useState('');
-  const [generatedMatricule, setGeneratedMatricule] = useState(''); // Pour l'affichage après inscription
+  const [generatedMatricule, setGeneratedMatricule] = useState('');
   const [dbError, setDbError] = useState<string | null>(null);
-  
-  // Network Diagnostic
-  const [networkStatus, setNetworkStatus] = useState<{ok: boolean, msg: string} | null>(null);
   
   const [currentView, setCurrentView] = useState<DashboardView>('HOME');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -131,6 +132,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [adminPartners, setAdminPartners] = useState<Partner[]>([]);
   const [adminPartnerName, setAdminPartnerName] = useState('');
   const [adminPartnerType, setAdminPartnerType] = useState('OFFICIAL');
+  const [adminPartnerUrl, setAdminPartnerUrl] = useState(''); // NEW URL
   const [adminTab, setAdminTab] = useState<'CONTENT' | 'USERS' | 'PARTNERS' | 'VODUN'>('CONTENT');
 
   // VODUN ADMIN
@@ -139,10 +141,12 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [newLocName, setNewLocName] = useState('');
   const [newLocType, setNewLocType] = useState('Sacré');
   const [newLocImg, setNewLocImg] = useState('');
+  const [newLocDesc, setNewLocDesc] = useState(''); // NEW
+  const [newLocCoords, setNewLocCoords] = useState('50,50'); // NEW
   const [newArchYear, setNewArchYear] = useState('');
   const [newArchTitle, setNewArchTitle] = useState('');
   const [newArchDesc, setNewArchDesc] = useState('');
-  const [newArchGallery, setNewArchGallery] = useState(''); // Comma separated URLs
+  const [newArchGallery, setNewArchGallery] = useState('');
 
   // NEXUS CHAT STATE
   const [nexusMessages, setNexusMessages] = useState<NexusMessage[]>([]);
@@ -165,9 +169,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [gameIndex, setGameIndex] = useState(0);
   const [gameScore, setGameScore] = useState(0);
   const [gameFinished, setGameFinished] = useState(false);
-
-  // AVATAR STATE
-  const [editingAvatar, setEditingAvatar] = useState(false);
 
   const dailyProverb = useMemo(() => {
       return PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
@@ -253,18 +254,21 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   // --- ACTIONS ---
 
+  const triggerConfetti = () => {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+  }
+
   const handleSendMessage = async () => {
       if (!nexusInput.trim() || !userProfile) return;
       const content = nexusInput.trim();
       setNexusInput('');
       playSound('success');
       await sendMessageToNexus(userProfile.name, userProfile.phone, userProfile.archetype || '', content);
-      // Removed XP for spam prevention
   };
 
   const handleDeleteNexusMessage = async (id: number) => {
       if (window.confirm("Admin: Supprimer ce message ?")) {
-          // Optimistic update
           setNexusMessages(prev => prev.filter(m => m.id !== id));
           const res = await deleteNexusMessage(id);
           if (!res.success) {
@@ -284,7 +288,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       
       if(res.success) {
           playSound('success');
-          // Optimistic update
           setPrivateMessages(prev => [...prev, {
               id: Date.now(),
               sender_matricule: userProfile.matricule,
@@ -345,6 +348,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       
       if (newLevel > userProfile.level) {
           playSound('success'); 
+          triggerConfetti();
       }
   };
 
@@ -446,12 +450,10 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       if (onLogout) onLogout();
   };
 
-  // AVATAR
   const handleChangeAvatar = async () => {
       if (!userProfile) return;
       const nextStyleIndex = (AVATAR_STYLES.indexOf(userProfile.avatar_style || 'bottts') + 1) % AVATAR_STYLES.length;
       const newStyle = AVATAR_STYLES[nextStyleIndex];
-      
       setUserProfile({...userProfile, avatar_style: newStyle});
       await updateAvatar(userProfile.matricule, newStyle);
   }
@@ -463,7 +465,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       if(res.success) {
           setAdminStatus("News publiée !");
           setAdminNewsTitle('');
-          fetchNews().then(setNewsList); // Refresh list
+          fetchNews().then(setNewsList);
       } else {
           setAdminStatus("Erreur: " + res.error);
       }
@@ -479,7 +481,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleAddVocab = async () => {
       if(!adminVocabFr) return;
-      const options = [adminVocabFon, "MauvaiseRep1", "MauvaiseRep2"]; // Simplifié
+      const options = [adminVocabFon, "MauvaiseRep1", "MauvaiseRep2"];
       const res = await addVocabulary(adminVocabFr, adminVocabFon, options);
       if(res.success) {
           setAdminStatus("Mot ajouté !");
@@ -501,9 +503,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleAddPartner = async () => {
     if(!adminPartnerName) return;
-    const res = await addPartner(adminPartnerName, adminPartnerType);
+    const res = await addPartner(adminPartnerName, adminPartnerType, adminPartnerUrl);
     if(res.success) {
-        setAdminPartnerName('');
+        setAdminPartnerName(''); setAdminPartnerUrl('');
         fetchPartners().then(setAdminPartners);
     }
   }
@@ -516,8 +518,8 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleAddVodunLoc = async () => {
       if(!newLocName) return;
-      await addVodunLocation(newLocName, newLocType, newLocImg || "https://images.unsplash.com/photo-1596561214300-4497e556398c");
-      setNewLocName(''); setNewLocImg('');
+      await addVodunLocation(newLocName, newLocType, newLocImg || "https://images.unsplash.com/photo-1596561214300-4497e556398c", newLocDesc, newLocCoords);
+      setNewLocName(''); setNewLocImg(''); setNewLocDesc(''); setNewLocCoords('50,50');
       fetchVodunLocations().then(setVodunLocs);
   }
   const handleDeleteVodunLoc = async (id: number) => {
@@ -527,7 +529,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleAddVodunArchive = async () => {
       if(!newArchTitle) return;
-      // Convert comma separated URLs to array
       const gallery = newArchGallery.split(',').map(u => u.trim()).filter(u => u);
       await addVodunArchive(parseInt(newArchYear) || 2026, newArchTitle, newArchDesc, gallery);
       setNewArchTitle(''); setNewArchDesc(''); setNewArchGallery('');
@@ -563,7 +564,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       const res = await addComment(newsId, userProfile.name, commentInput);
       if(res.success) {
           setCommentInput('');
-          // Refresh comments
           const data = await fetchComments(newsId);
           setComments(data);
           addXp(1, "Participation");
@@ -576,7 +576,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       const correct = currentWord.fon === selected;
       if (correct) {
           setGameScore(prev => prev + 1);
-          addXp(2, "Bonne réponse !"); // Reduced XP
+          addXp(2, "Bonne réponse !"); 
           playSound('success');
       } else {
           addXp(0, "Oups, essaie encore.");
@@ -586,8 +586,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           setGameIndex(prev => prev + 1);
       } else {
           setGameFinished(true);
-          addXp(10, "Niveau Terminé !"); // Reduced XP
+          addXp(10, "Niveau Terminé !"); 
           playSound('success');
+          triggerConfetti();
       }
   };
 
@@ -754,6 +755,14 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   if (stage === 'DASHBOARD' && userProfile) {
       return (
         <div className="h-full bg-cyber-black flex overflow-hidden relative pt-16 md:pt-0">
+          
+          {/* Confetti Effect */}
+          {showConfetti && (
+              <div className="absolute inset-0 pointer-events-none z-[100] flex justify-center overflow-hidden">
+                  <div className="animate-[float_3s_ease-in-out_infinite] text-4xl">🎉 ✨ 🎊 🏆</div>
+              </div>
+          )}
+
           <div className="absolute top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none">
              {xpNotifications.map(notif => (
                  <div key={notif.id} className="animate-in slide-in-from-right fade-in duration-300 flex items-center gap-3 bg-black/80 backdrop-blur border border-vodoun-gold/50 px-4 py-3 rounded-lg">
@@ -814,8 +823,8 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                      </button>
                  )}
              </nav>
-             <div className="p-4 border-t border-white/5 mt-auto pb-20 md:pb-4 bg-black/90">
-                 <button onClick={handleLogoutLocal} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 font-bold rounded-lg text-sm transition-colors border border-red-500/50">
+             <div className="p-4 border-t border-white/5 mt-auto pb-32 md:pb-4 bg-black/90">
+                 <button onClick={handleLogoutLocal} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-sm transition-colors border border-red-500/50 shadow-lg">
                      <LogOut size={18} /> DÉCONNEXION
                  </button>
              </div>
@@ -1236,7 +1245,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                   <input placeholder="Nom Partenaire" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminPartnerName} onChange={e => setAdminPartnerName(e.target.value)}/>
                                   <select className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminPartnerType} onChange={e => setAdminPartnerType(e.target.value)}>
                                       <option value="OFFICIAL">Officiel</option><option value="TECH">Technologique</option><option value="ACADEMIC">Académique</option>
+                                      <option value="VODUN">Vodun Days</option>
                                   </select>
+                                  <input placeholder="Lien Site Web (https://...)" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminPartnerUrl} onChange={e => setAdminPartnerUrl(e.target.value)}/>
                                   <button onClick={handleAddPartner} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER PARTENAIRE</button>
                               </div>
                               <div className="space-y-2">
@@ -1244,7 +1255,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                       <div key={p.id} className="flex justify-between items-center bg-white/5 p-3 rounded">
                                           <div>
                                               <p className="text-sm font-bold text-white">{p.name}</p>
-                                              <p className="text-xs text-gray-500">{p.type}</p>
+                                              <p className="text-xs text-gray-500">{p.type} {p.website_url && '🔗'}</p>
                                           </div>
                                           <button onClick={() => handleDeletePartner(p.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
                                       </div>
@@ -1256,13 +1267,15 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                         {adminTab === 'VODUN' && (
                             <div className="space-y-8">
                                 <div className="glass-panel p-6 rounded-xl border border-red-500/30">
-                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><MapPin size={18}/> Lieux Vodun</h3>
+                                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><MapPin size={18}/> Lieux Vodun & Tourisme</h3>
                                     <div className="space-y-4 mb-6">
                                         <input placeholder="Nom du Lieu" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocName} onChange={e => setNewLocName(e.target.value)}/>
                                         <select className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocType} onChange={e => setNewLocType(e.target.value)}>
                                             <option value="Sacré">Sacré</option><option value="Mémorial">Mémorial</option><option value="Fête">Fête</option>
                                         </select>
                                         <input placeholder="URL Image" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocImg} onChange={e => setNewLocImg(e.target.value)}/>
+                                        <input placeholder="Coordonnées Carte (X,Y en % ex: 50,50)" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={newLocCoords} onChange={e => setNewLocCoords(e.target.value)}/>
+                                        <textarea placeholder="Description Touristique Détaillée" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white h-24" value={newLocDesc} onChange={e => setNewLocDesc(e.target.value)}/>
                                         <button onClick={handleAddVodunLoc} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER LIEU</button>
                                     </div>
                                     <div className="space-y-2">
