@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem } from '../types';
+import { UserProfile, Archetype, LeaderboardEntry, NewsItem, Course, NexusMessage, VocabularyItem, Comment } from '../types';
 
 // Configuration Supabase
 const SUPABASE_URL = 'https://quemcztobbsqdlqftgyw.supabase.co';
@@ -33,7 +33,7 @@ export const fetchNews = async (): Promise<NewsItem[]> => {
             .from('news')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(20);
             
         if (error || !data) return [];
         
@@ -59,6 +59,41 @@ export const createNews = async (title: string, category: string, excerpt: strin
         return { success: false, error: e.message };
     }
 }
+
+export const deleteNews = async (id: string) => {
+    try {
+        const { error } = await supabase.from('news').delete().eq('id', id);
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+// --- COMMENTAIRES ---
+export const fetchComments = async (newsId: string): Promise<Comment[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('news_id', newsId)
+            .order('created_at', { ascending: true });
+        
+        if(error || !data) return [];
+        return data as Comment[];
+    } catch(e) { return []; }
+}
+
+export const addComment = async (newsId: string, userName: string, content: string) => {
+    try {
+        const { error } = await supabase.from('comments').insert({
+            news_id: newsId, user_name: userName, content
+        });
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 
 export const fetchCourses = async (): Promise<Course[]> => {
     try {
@@ -115,10 +150,19 @@ export const addVocabulary = async (fr: string, fon: string, options: string[]) 
     }
 }
 
+export const deleteVocabulary = async (id: number) => {
+    try {
+        const { error } = await supabase.from('vocabulary').delete().eq('id', id);
+        return { success: !error, error: error?.message };
+    } catch(e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 
 // --- GESTION DES PROFILS UTILISATEURS ---
 
-// MODIFIÉ : Récupération par MATRICULE
+// Récupération par MATRICULE
 export const getProfileByMatricule = async (matricule: string): Promise<UserProfile | null> => {
     try {
         const { data, error } = await supabase
@@ -147,7 +191,7 @@ export const getProfileByMatricule = async (matricule: string): Promise<UserProf
     }
 };
 
-// MODIFIÉ : Génération Matricule et Auth
+// Génération Matricule et Auth
 export const upsertProfile = async (profile: UserProfile): Promise<{ success: boolean; error?: string; matricule?: string }> => {
     try {
         // 1. Générer un matricule aléatoire si c'est une nouvelle inscription
@@ -169,13 +213,17 @@ export const upsertProfile = async (profile: UserProfile): Promise<{ success: bo
             updated_at: new Date().toISOString()
         };
 
+        // IMPORTANT : onConflict doit cibler une contrainte UNIQUE.
+        // Avec le nouveau script SQL, 'phone' est UNIQUE.
         const { error } = await supabase
             .from('profiles')
             .upsert(dbProfile, { onConflict: 'phone' });
 
         if (error) {
             console.error("Erreur sauvegarde profil (Supabase):", error);
-            if (error.code === '42883') return { success: false, error: "Erreur config SQL (UUID/BigInt). Vérifiez les policies." };
+            // Gestion erreur contrainte unique
+            if (error.code === '23505') return { success: false, error: "Ce numéro est déjà inscrit." };
+            if (error.code === '42883') return { success: false, error: "Erreur config SQL (UUID/BigInt)." };
             return { success: false, error: error.message };
         }
         return { success: true, matricule: matriculeToUse };
@@ -190,7 +238,7 @@ export const addXPToRemote = async (matricule: string, amount: number) => {
         // Tentative d'appel RPC sécurisé avec MATRICULE
         const { error } = await supabase.rpc('increment_xp', { user_matricule: matricule, xp_amount: amount });
         
-        // Fallback si la fonction RPC n'existe pas encore
+        // Fallback update manuel (uniquement si RPC échoue et RLS permissif)
         if (error) {
             console.warn("RPC increment_xp échoué, fallback update manuel", error.message);
             const { data: current } = await supabase.from('profiles').select('xp').eq('matricule', matricule).single();

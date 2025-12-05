@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark } from 'lucide-react';
-import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem } from '../types';
+import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment } from '../types';
 import { Lab } from './Lab';
-import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule } from '../services/supabase';
+import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment } from '../services/supabase';
 
 // --- CONFIGURATION ---
 
@@ -112,6 +112,12 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   const [nexusInput, setNexusInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // COMMENTS STATE
+  const [expandedNewsId, setExpandedNewsId] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentInput, setCommentInput] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+
   // GAME STATE
   const [gameIndex, setGameIndex] = useState(0);
   const [gameScore, setGameScore] = useState(0);
@@ -162,6 +168,12 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           fetchVocabulary(1).then(data => {
               setVocabularyList(data.length > 0 ? data : FALLBACK_VOCABULARY);
           });
+      }
+
+      if (currentView === 'ADMIN') {
+        // Reload news and vocab to manage them
+        fetchNews().then(setNewsList);
+        fetchVocabulary(1).then(setVocabularyList);
       }
 
       if (currentView === 'NEXUS') {
@@ -258,7 +270,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       setDbError(null);
       setStage('SYNCING');
       
-      // Admin backdoor check hardcoded or via DB
       const profile = await getProfileByMatricule(loginMatricule.trim());
       
       if (profile) {
@@ -343,8 +354,17 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       if(res.success) {
           setAdminStatus("News publiée !");
           setAdminNewsTitle('');
+          fetchNews().then(setNewsList); // Refresh list
       } else {
           setAdminStatus("Erreur: " + res.error);
+      }
+  }
+
+  const handleDeleteNews = async (id: string) => {
+      if(!window.confirm("Supprimer cette actu ?")) return;
+      const res = await deleteNews(id);
+      if(res.success) {
+          setNewsList(prev => prev.filter(n => n.id !== id));
       }
   }
 
@@ -356,8 +376,43 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
           setAdminStatus("Mot ajouté !");
           setAdminVocabFr('');
           setAdminVocabFon('');
+          fetchVocabulary(1).then(setVocabularyList);
       } else {
           setAdminStatus("Erreur: " + res.error);
+      }
+  }
+
+  const handleDeleteVocab = async (id: number) => {
+      if(!window.confirm("Supprimer ce mot ?")) return;
+      const res = await deleteVocabulary(id);
+      if(res.success) {
+          setVocabularyList(prev => prev.filter(v => v.id !== id));
+      }
+  }
+
+  // COMMENTS FUNCTIONS
+  const toggleComments = async (newsId: string) => {
+      if (expandedNewsId === newsId) {
+          setExpandedNewsId(null);
+          setComments([]);
+      } else {
+          setExpandedNewsId(newsId);
+          setLoadingComments(true);
+          const data = await fetchComments(newsId);
+          setComments(data);
+          setLoadingComments(false);
+      }
+  }
+
+  const handlePostComment = async (newsId: string) => {
+      if(!commentInput.trim() || !userProfile) return;
+      const res = await addComment(newsId, userProfile.name, commentInput);
+      if(res.success) {
+          setCommentInput('');
+          // Refresh comments
+          const data = await fetchComments(newsId);
+          setComments(data);
+          addXp(2, "Participation");
       }
   }
 
@@ -727,7 +782,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               {currentView === 'NEWS' && (
                    <div className="animate-in slide-in-from-right-4">
                        <h2 className="text-3xl font-display font-bold text-white mb-6">Flux d'Actualités <span className="text-vodoun-orange">Live</span></h2>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="space-y-6">
                            {newsList.map((news) => (
                                <div key={news.id} className="p-6 glass-panel border border-white/10 rounded-xl hover:border-vodoun-orange/30 transition-all">
                                    <div className="flex justify-between items-start mb-4">
@@ -735,7 +790,38 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                                        <span className="text-xs text-gray-500">{news.date}</span>
                                    </div>
                                    <h3 className="text-xl font-bold text-white mb-2">{news.title}</h3>
-                                   <p className="text-gray-400 text-sm">{news.excerpt}</p>
+                                   <p className="text-gray-400 text-sm mb-4">{news.excerpt}</p>
+                                   
+                                   <div className="border-t border-white/5 pt-4">
+                                       <button onClick={() => toggleComments(news.id)} className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors">
+                                           <MessageCircle size={14} /> 
+                                           {expandedNewsId === news.id ? "Masquer les commentaires" : "Commentaires"}
+                                       </button>
+
+                                       {expandedNewsId === news.id && (
+                                           <div className="mt-4 animate-in fade-in">
+                                               {loadingComments ? <Loader2 size={16} className="animate-spin text-vodoun-gold mx-auto" /> : (
+                                                   <div className="space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
+                                                       {comments.length === 0 && <p className="text-xs text-gray-600 italic">Aucun commentaire pour le moment.</p>}
+                                                       {comments.map(c => (
+                                                           <div key={c.id} className="text-xs bg-white/5 p-2 rounded">
+                                                               <span className="text-vodoun-gold font-bold">{c.user_name}</span>: <span className="text-gray-300">{c.content}</span>
+                                                           </div>
+                                                       ))}
+                                                   </div>
+                                               )}
+                                               <div className="flex gap-2">
+                                                   <input 
+                                                     placeholder="Écrire..." 
+                                                     value={commentInput} 
+                                                     onChange={e => setCommentInput(e.target.value)}
+                                                     className="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white"
+                                                   />
+                                                   <button onClick={() => handlePostComment(news.id)} className="p-2 bg-vodoun-orange text-white rounded hover:bg-vodoun-orange/80"><Send size={14}/></button>
+                                               </div>
+                                           </div>
+                                       )}
+                                   </div>
                                </div>
                            ))}
                        </div>
@@ -848,7 +934,7 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               )}
               
               {currentView === 'ADMIN' && userProfile.archetype === 'ADMIN' && (
-                  <div className="animate-in slide-in-from-bottom-4 max-w-4xl mx-auto space-y-8">
+                  <div className="animate-in slide-in-from-bottom-4 max-w-4xl mx-auto space-y-8 pb-20">
                       <div className="text-center mb-6">
                         <h2 className="text-3xl font-display font-bold text-white text-red-500 flex items-center justify-center gap-2">
                             <Key size={32} /> ADMINISTRATION
@@ -866,6 +952,18 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               <textarea placeholder="Contenu (extrait)" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminNewsContent} onChange={e => setAdminNewsContent(e.target.value)}/>
                               <button onClick={handleCreateNews} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">PUBLIER</button>
                           </div>
+                          
+                          <div className="mt-8 border-t border-white/10 pt-4">
+                              <h4 className="text-sm font-bold text-gray-400 mb-2">Gérer les News existantes</h4>
+                              <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                  {newsList.map(n => (
+                                      <div key={n.id} className="flex justify-between items-center bg-white/5 p-2 rounded">
+                                          <span className="text-xs text-white truncate w-2/3">{n.title}</span>
+                                          <button onClick={() => handleDeleteNews(n.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
                       </div>
 
                       <div className="glass-panel p-6 rounded-xl border border-red-500/30">
@@ -874,6 +972,18 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
                               <input placeholder="Mot Français" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminVocabFr} onChange={e => setAdminVocabFr(e.target.value)}/>
                               <input placeholder="Mot Fon" className="w-full bg-black/50 border border-gray-700 rounded p-3 text-white" value={adminVocabFon} onChange={e => setAdminVocabFon(e.target.value)}/>
                               <button onClick={handleAddVocab} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded">AJOUTER</button>
+                          </div>
+
+                          <div className="mt-8 border-t border-white/10 pt-4">
+                              <h4 className="text-sm font-bold text-gray-400 mb-2">Gérer le Vocabulaire</h4>
+                              <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                  {vocabularyList.map(v => (
+                                      <div key={v.id} className="flex justify-between items-center bg-white/5 p-2 rounded">
+                                          <span className="text-xs text-white truncate w-2/3">{v.fr} - {v.fon}</span>
+                                          <button onClick={() => handleDeleteVocab(v.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
+                                      </div>
+                                  ))}
+                              </div>
                           </div>
                       </div>
                   </div>

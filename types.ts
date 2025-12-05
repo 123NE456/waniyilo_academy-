@@ -43,6 +43,14 @@ export interface NewsItem {
   excerpt: string;
 }
 
+export interface Comment {
+    id: string;
+    news_id: string;
+    user_name: string;
+    content: string;
+    created_at: string;
+}
+
 export interface Badge {
   id: string;
   name: string;
