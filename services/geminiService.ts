@@ -1,6 +1,19 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
+// SÉCURITÉ : Vérification de l'environnement pour éviter le crash "process is not defined" dans le navigateur
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+    // Fallback pour Vite (import.meta.env) si nécessaire, ou chaîne vide
+    return ''; 
+  } catch (e) {
+    return '';
+  }
+};
+
+const apiKey = getApiKey();
 
 // --- CONFIGURATION DU PERSONA ---
 const SYSTEM_INSTRUCTION = `
@@ -40,7 +53,7 @@ const FALLBACK_ORACLES: Record<string, string> = {
 
 export const sendMessageToSpirit = async (message: string, history: string[] = []): Promise<string> => {
   if (!apiKey) {
-    return "Mes connexions avec le Cloud sont en pause, mais mon esprit est avec toi. (Mode Démo : Clé API manquante)";
+    return "Mes connexions avec le Cloud sont en pause (Clé API manquante), mais mon esprit est avec toi. Je simule la sagesse pour l'instant.";
   }
 
   try {
@@ -116,7 +129,7 @@ export const generateSpiritVoice = async (text: string): Promise<string | null> 
 };
 
 export const translateText = async (text: string, targetLang: string = 'English'): Promise<string> => {
-    if (!apiKey) return `[Traduction Simulée en ${targetLang}] : Le contenu s'afficherait ici avec une clé API active.`;
+    if (!apiKey) return `[Traduction Simulée en ${targetLang}] (API Key manquante)`;
   
     try {
       const ai = new GoogleGenAI({ apiKey });

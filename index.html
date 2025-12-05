@@ -8,7 +8,7 @@
     <!-- Polices Futuristes -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <!-- Leaflet CSS (OpenStreetMap) -->
+    <!-- Leaflet CSS (Cartes) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
     <!-- Mobile Web App Meta Tags -->
@@ -19,6 +19,55 @@
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- TAILWIND CSS CDN (SECOURS POUR L'AFFICHAGE DES COULEURS) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Orbitron', 'sans-serif'],
+              tech: ['Rajdhani', 'sans-serif'],
+            },
+            colors: {
+              'vodoun-red': '#DC2626',
+              'vodoun-gold': '#F59E0B',
+              'vodoun-green': '#059669',
+              'vodoun-purple': '#7C3AED',
+              'vodoun-orange': '#EA580C',
+              'cyber-black': '#050505',
+              'cyber-gray': '#121212',
+            },
+            animation: {
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'glow': 'glow 2s ease-in-out infinite alternate',
+              'spin-slow': 'spin 12s linear infinite',
+              'spin-very-slow': 'spin 60s linear infinite',
+              'spin-reverse-slow': 'spin-reverse 45s linear infinite',
+              'drift': 'drift 20s ease-in-out infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              },
+              'spin-reverse': {
+                'from': { transform: 'rotate(360deg)' },
+                'to': { transform: 'rotate(0deg)' },
+              },
+              drift: {
+                '0%': { transform: 'translateX(0) translateY(0)' },
+                '50%': { transform: 'translateX(50px) translateY(-20px)' },
+                '100%': { transform: 'translateX(0) translateY(0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
@@ -33,8 +82,9 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
-  <body>
+  <body class="bg-cyber-black text-gray-100">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -1,13 +1,8 @@
-
-
-// ... (imports remain the same)
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Brain, Code, Globe, X, ChevronRight, Sparkles, Languages, Lock, Fingerprint, Zap, Newspaper, LayoutDashboard, LogOut, Menu, Award, Phone, Construction, User, Loader2, Gift, AlertCircle, Quote, Wifi, CheckCircle, Volume2, Trophy, Music, ShieldCheck, ArrowLeft, MessageCircle, Send, Hash, Key, Edit3, PlusCircle, Bookmark, Trash2, ChevronDown, ChevronUp, RefreshCw, Mail, Eye, EyeOff, Users, Handshake, Flame, MapPin, Image } from 'lucide-react';
 import { Course, Archetype, UserProfile, NewsItem, XPNotification, LeaderboardEntry, NexusMessage, VocabularyItem, Comment, PrivateMessage, Partner, UserSummary, VodunLocation, VodunArchive } from '../types';
 import { Lab } from './Lab';
 import { upsertProfile, addXPToRemote, checkSupabaseConnection, getLeaderboard, fetchNews, fetchCourses, fetchRecentMessages, sendMessageToNexus, subscribeToNexus, fetchVocabulary, createNews, addVocabulary, getProfileByMatricule, deleteNews, deleteVocabulary, fetchComments, addComment, updateAvatar, deleteNexusMessage, fetchAllUsers, fetchPartners, addPartner, deletePartner, fetchVodunLocations, addVodunLocation, deleteVodunLocation, fetchVodunArchives, addVodunArchive, deleteVodunArchive, saveCourseScore } from '../services/supabase';
-
-// ... (Constants like QUESTIONS, PROVERBS, BADGES_DEFINITIONS, FALLBACK_VOCABULARY, FALLBACK_NEWS, AVATAR_STYLES remain the same)
 
 const QUESTIONS = [
   {
@@ -66,8 +61,6 @@ const BADGES_DEFINITIONS = [
 
 const FALLBACK_VOCABULARY: VocabularyItem[] = [
     { id: 1, level: 1, fr: "Ordinateur", fon: "Wémá mɔ", options: ["Wémá mɔ", "Gbedjé", "Zòkèké"] },
-    { id: 2, level: 1, fr: "Internet", fon: "Kan mɛ", options: ["Agbaza", "Kan mɛ", "Yɛhwe"] },
-    { id: 3, level: 1, fr: "Savoir", fon: "Nunyɔ", options: ["Akkwɛ", "Nunyɔ", "Alɔ"] }
 ];
 
 const FALLBACK_NEWS: NewsItem[] = [
@@ -158,9 +151,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   // GAME STATE
   const [gameIndex, setGameIndex] = useState(0);
-  const [gameScore, setGameScore] = useState(0); // Count correct answers
+  const [gameScore, setGameScore] = useState(0); 
   const [gameFinished, setGameFinished] = useState(false);
-  const [finalGrade, setFinalGrade] = useState(0); // Score /20
+  const [finalGrade, setFinalGrade] = useState(0); 
 
   const dailyProverb = useMemo(() => {
       return PROVERBS[Math.floor(Math.random() * PROVERBS.length)];
@@ -254,7 +247,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
 
   const handleDeleteNexusMessage = async (id: number) => {
       if (window.confirm("Admin: Supprimer ce message ?")) {
-          // Optimistic update
           setNexusMessages(prev => prev.filter(m => m.id !== id));
           const res = await deleteNexusMessage(id);
           if (!res.success) {
@@ -315,9 +307,9 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
       }
   };
 
-  // CHECK LOCK STATUS
+  // CHECK LOCK STATUS - STRICT
   const isCourseLocked = (level: number) => {
-      if (level === 1) return false; // Level 1 always open
+      if (level === 1) return false; 
       if (!userProfile?.course_progress) return true;
       
       // Level 2 requires score >= 15 on Level 1
@@ -336,7 +328,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
   }
 
   const launchCourse = (levelString: string) => {
-      // Extract level number from string like "Niveau 2"
       const level = parseInt(levelString.replace(/\D/g, '')) || 1;
       
       if (isCourseLocked(level)) {
@@ -1140,7 +1131,6 @@ export const Academy: React.FC<AcademyProps> = ({ initialProfile, onEnterImmersi
               
               {currentView === 'ADMIN' && userProfile.archetype === 'ADMIN' && (
                   <div className="animate-in slide-in-from-bottom-4 max-w-4xl mx-auto space-y-8 pb-20">
-                      {/* ... (ADMIN Interface remains the same, assuming user is happy with previous ADMIN implementation) */}
                       <div className="text-center mb-6">
                         <h2 className="text-3xl font-display font-bold text-white text-red-500 flex items-center justify-center gap-2">
                             <Key size={32} /> ADMINISTRATION SUPRÊME

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Flame, MapPin, History, Handshake, Star, Image, Loader2, Navigation, Hotel, Fuel, ArrowRight, Lock, Info, X } from 'lucide-react';
 import { VodunArchive, VodunLocation, Section, Partner } from '../types';
